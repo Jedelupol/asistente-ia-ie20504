@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
     try {
-        const { prompt } = await req.json();
+        const { prompt, temperature } = await req.json();
         const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY?.trim();
 
         if (!apiKey) {
@@ -17,11 +17,10 @@ export async function POST(req: Request) {
         // REGLAS ESTRICTAS DE CNEB Y CALIDAD LINGÜÍSTICA
         const cnebRules = `
 REGLAS ESTRICTAS DE CALIDAD Y CNEB:
-1. FILTRO LINGÜÍSTICO: Prohibido usar palabras inventadas, mal escritas o caracteres extraños. Usa español neutro, codificación UTF-8 limpia. IMPORTANTE: Escribe en español estándar de Perú. No inventes palabras. Si no puedes generar una palabra con tilde correctamente, usa el carácter normal, pero evita generar símbolos extraños.
-2. ALINEACIÓN CNEB: La lectura evalúa la competencia "Lee diversos tipos de textos escritos en su lengua materna".
-3. NIVELES DE COMPRENSIÓN: Las actividades DEBEN cubrir exactamente tres niveles: Literal, Inferencial y Crítico.
-4. CAPACIDADES: Usa estrictamente estas tres capacidades en la matriz: "Obtiene información del texto escrito", "Infiere e interpreta información del texto", y "Reflexiona y evalúa la forma, el contenido y contexto del texto".
-5. FORMATO: Devuelve ÚNICAMENTE un JSON puro y válido. Asegúrate de que las tildes y las eñes (ñ) se rendericen correctamente.
+1. FILTRO LINGÜÍSTICO: Prohibido usar palabras inventadas, mal escritas o caracteres extraños. Usa español neutro, codificación UTF-8 limpia. Escribe en español estándar de Perú. No inventes palabras.
+2. ALINEACIÓN CNEB: Genera actividades basándote ESTRICTAMENTE en las competencias que se detallan en el prompt. No agregues competencias que no fueron solicitadas.
+3. CONSIGNAS DE DESEMPEÑO: Las actividades DEBEN ser retos o acciones ("consignas") alineadas a las capacidades requeridas, nunca preguntas de opción múltiple simples.
+4. FORMATO: Devuelve ÚNICAMENTE un JSON puro y válido que cumpla con el esquema.
 `;
 
         const finalPrompt = prompt + "\n\n" + cnebRules + "\n\nCRÍTICO: Devuelve única y exclusivamente un objeto JSON. NO añadas etiquetas de código markdown (como ```json o similares).";
@@ -40,7 +39,7 @@ REGLAS ESTRICTAS DE CALIDAD Y CNEB:
                     }
                 ],
                 generationConfig: {
-                    temperature: 0.3
+                    temperature: temperature !== undefined ? parseFloat(temperature) : 0.7
                 }
             })
         });
@@ -86,22 +85,67 @@ REGLAS ESTRICTAS DE CALIDAD Y CNEB:
 
         try {
             const finalJson = JSON.parse(cleanJsonString);
+
+            // --- FASE 6: UNSPLASH INTEGRATION ---
+            if (finalJson.searchKeywords && process.env.UNSPLASH_ACCESS_KEY) {
+                try {
+                    const unsplashQuery = encodeURIComponent(finalJson.searchKeywords);
+                    const unsplashUrl = `https://api.unsplash.com/search/photos?query=${unsplashQuery}&per_page=1&orientation=landscape`;
+
+                    console.log("📸 [UNSPLASH] Iniciando búsqueda...");
+                    console.log(`📸 [UNSPLASH] Query: ${finalJson.searchKeywords}`);
+                    console.log(`📸 [UNSPLASH] Access Key (mask): ${process.env.UNSPLASH_ACCESS_KEY.slice(0, 4)}...${process.env.UNSPLASH_ACCESS_KEY.slice(-4)}`);
+
+                    const unsplashRes = await fetch(unsplashUrl, {
+                        headers: {
+                            Authorization: `Client-ID ${process.env.UNSPLASH_ACCESS_KEY}`
+                        }
+                    });
+
+                    console.log(`📸 [UNSPLASH] HTTP Status: ${unsplashRes.status} ${unsplashRes.statusText}`);
+
+                    if (unsplashRes.ok) {
+                        const unsplashData = await unsplashRes.json();
+                        console.log(`📸 [UNSPLASH] OK! Resultados encontrados: ${unsplashData.results.length}`);
+                        if (unsplashData.results.length > 0) {
+                            console.log(`📸 [UNSPLASH] URL Imagen: ${unsplashData.results[0].urls.regular}`);
+                        }
+                        finalJson.imagenesReferencia = unsplashData.results.map((r: { urls: { regular: string } }) => r.urls.regular);
+                    } else {
+                        const errorBody = await unsplashRes.text();
+                        console.error(`❌ [UNSPLASH] ERROR API (${unsplashRes.status}):`, errorBody);
+
+                        // Diagnóstico específico para el Lic. Jesús
+                        if (unsplashRes.status === 401) console.error("⚠️ DIAGNÓSTICO: Llave de Unsplash Inválida (Unauthorized).");
+                        if (unsplashRes.status === 403) console.error("⚠️ DIAGNÓSTICO: Límite de API de Unsplash superado o cuenta bloqueada.");
+
+                        finalJson.imagenesReferencia = []; // Fallback empty
+                    }
+                } catch (unsplashError) {
+                    console.error("❌ [UNSPLASH] Error crítico en fetch:", unsplashError);
+                    finalJson.imagenesReferencia = []; // Fallback empty
+                }
+            } else if (finalJson.searchKeywords) {
+                console.warn("⚠️ [UNSPLASH] searchKeywords presentes pero falta UNSPLASH_ACCESS_KEY en el entorno.");
+            }
+            // ------------------------------------
+
             return new NextResponse(JSON.stringify(finalJson), {
                 status: 200,
                 headers: { 'Content-Type': 'application/json; charset=utf-8' }
             });
-        } catch (parseError: any) {
-            console.error("Fallo de Parseo JSON. Cadena devuelta:", cleanJsonString);
+        } catch (parseError: unknown) {
+            console.error("Fallo de Parseo JSON. Cadena devuelta:", cleanJsonString, parseError);
             return new NextResponse(JSON.stringify({ error: "La IA generó un formato corrupto. Intente de nuevo.", raw: cleanJsonString }), {
                 status: 500,
                 headers: { 'Content-Type': 'application/json; charset=utf-8' }
             });
         }
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("ERROR CRÍTICO DEL SERVIDOR DE NEXT:", error);
         return NextResponse.json(
-            { error: "Error de Servidor", details: error.message },
+            { error: "Error de Servidor", details: error instanceof Error ? error.message : "Unknown error" },
             { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
         );
     }

@@ -83,22 +83,7 @@ export default function Header() {
                     <nav className="flex items-center gap-4">
                         {user && (
                             <>
-                                {/* NAVEGACIÓN COMUNICACIÓN */}
-                                <div className="relative group hidden sm:block">
-                                    <button className="flex items-center gap-1 hover:bg-white/10 px-3 py-1.5 rounded-lg transition-colors text-sm font-bold tracking-wide">
-                                        <BookOpen className="w-4 h-4" />
-                                        Comunicación
-                                        <svg className="w-4 h-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
-                                    </button>
-                                    <div className="absolute top-full right-0 mt-1 w-44 bg-white rounded-xl shadow-xl shadow-slate-900/10 border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top z-50 overflow-hidden">
-                                        <Link href="/dashboard?nivel=primaria" className="flex items-center gap-2 px-4 py-3 text-sm font-black text-black hover:bg-orange-50 hover:text-orange-700 transition-colors">
-                                            <span className="w-2 h-2 rounded-full bg-orange-400"></span> Primaria
-                                        </Link>
-                                        <Link href="/dashboard?nivel=secundaria" className="flex items-center gap-2 px-4 py-3 text-sm font-black text-black hover:bg-blue-50 hover:text-blue-700 transition-colors border-t border-slate-50">
-                                            <span className="w-2 h-2 rounded-full bg-blue-400"></span> Secundaria
-                                        </Link>
-                                    </div>
-                                </div>
+                                {/* NAVIGATION MENUS REMOVED AS REQUESTED */}
 
                                 {pathname !== '/copiloto' && (
                                     <Link href="/copiloto" className="hidden sm:flex items-center gap-2 hover:bg-orange-600 px-3 py-2 rounded-lg transition-colors text-[10px] sm:text-sm font-extrabold bg-orange-500 text-black shadow-md border border-orange-400">
@@ -117,8 +102,11 @@ export default function Header() {
                                         <LayoutDashboard className="w-4 h-4" /> Inicio
                                     </Link>
                                 )}
-                                <div className="hidden sm:flex items-center gap-2 text-sm text-black px-3 py-1.5 border-l border-primary-500/50">
-                                    <span className="font-medium truncate max-w-[120px]">{user.displayName || user.email}</span>
+                                <div className="hidden sm:flex flex-col items-end px-3 py-1.5 border-l border-primary-500/50">
+                                    <span className="text-sm text-black font-extrabold truncate max-w-[180px]">¡Bienvenido, Estimado Docente!</span>
+                                    <span className={`text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-sm ${role === 'admin' ? 'bg-rose-500 text-white' : 'bg-primary-500 text-black'}`}>
+                                        [{role === 'admin' ? 'ADMIN' : 'DOCENTE'}]
+                                    </span>
                                 </div>
                                 <button
                                     onClick={handleLogout}

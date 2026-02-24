@@ -18,7 +18,19 @@ export async function POST(request: Request) {
 
         // Get user role to ensure they are admin
         const callerDoc = await adminDb.collection('users').doc(decodedToken.uid).get();
-        if (!callerDoc.exists || callerDoc.data()?.role !== 'admin') {
+        let callerRole = callerDoc.data()?.role;
+
+        // Auto-grant admin to the main account
+        if (decodedToken.email === 'jesus@gmail.com' && callerRole !== 'admin') {
+            await adminDb.collection('users').doc(decodedToken.uid).set({
+                role: 'admin',
+                email: decodedToken.email,
+                isActive: true
+            }, { merge: true });
+            callerRole = 'admin';
+        }
+
+        if (!callerDoc.exists || callerRole !== 'admin') {
             return NextResponse.json({ error: 'Solo los administradores pueden crear cuentas' }, { status: 403 });
         }
 

@@ -16,6 +16,7 @@ interface AuthContextType {
     loading: boolean;
     logout: () => Promise<void>;
     sessionConflict: boolean;
+    isAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -23,7 +24,8 @@ const AuthContext = createContext<AuthContextType>({
     role: null,
     loading: true,
     logout: async () => { },
-    sessionConflict: false
+    sessionConflict: false,
+    isAdmin: false
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -43,10 +45,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             if (currentUser) {
                 // Fetch user role from Firestore
                 try {
-                    const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-                    if (userDoc.exists()) {
-                        setRole(userDoc.data().role || 'teacher');
+                    let userRole = 'teacher'; // Default role
+
+                    // Hardcoded Admin Safety Check
+                    if (currentUser.email === 'jesus@gmail.com') {
+                        userRole = 'admin';
+                    } else {
+                        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+                        if (userDoc.exists() && userDoc.data().role) {
+                            userRole = userDoc.data().role;
+                        }
                     }
+
+                    setRole(userRole);
                 } catch (error) {
                     console.error("Error fetching user role:", error);
                 }
@@ -125,8 +136,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
+    const isAdmin = role === 'admin';
+
     return (
-        <AuthContext.Provider value={{ user, role, loading, logout, sessionConflict }}>
+        <AuthContext.Provider value={{ user, role, loading, logout, sessionConflict, isAdmin }}>
             {/* Optional: Render full page blocker if conflicted */}
             {sessionConflict && (
                 <div className="fixed inset-0 z-[100] bg-white flex flex-col items-center justify-center p-4">

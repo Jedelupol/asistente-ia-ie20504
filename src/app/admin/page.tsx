@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
 import Header from '@/components/Header';
@@ -11,7 +12,7 @@ import { Users, Settings, Plus, Trash2, ShieldAlert, Loader2, Save } from 'lucid
 type AdminTab = 'teachers' | 'whitelist' | 'settings';
 
 export default function AdminPage() {
-    const { user, role, loading: authLoading } = useAuth();
+    const { user, loading: authLoading } = useAuth();
     const router = useRouter();
     const [activeTab, setActiveTab] = useState<AdminTab>('teachers');
 
@@ -488,9 +489,9 @@ function PlatformSettings() {
                         className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-primary-500 outline-none"
                     />
                     {logoUrl && (
-                        <div className="mt-4 p-4 border border-slate-200 rounded-xl bg-slate-50 inline-block">
+                        <div className="mt-4 p-4 border border-slate-200 rounded-xl bg-slate-50 inline-block relative h-20 w-32">
                             <p className="text-xs text-black font-semibold mb-2 uppercase">Vista Previa:</p>
-                            <img src={logoUrl} alt="Logo Preview" className="h-16 w-auto object-contain" onError={(e) => (e.currentTarget.src = 'https://via.placeholder.com/64')} />
+                            <Image src={logoUrl} alt="Logo Preview" fill className="object-contain" unoptimized onError={(e) => (e.currentTarget.src = 'https://via.placeholder.com/64')} />
                         </div>
                     )}
                 </div>

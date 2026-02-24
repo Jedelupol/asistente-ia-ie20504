@@ -41,13 +41,16 @@ export default function WelcomePage() {
                 Cerrar Sesión
             </button>
 
-            {/* Botón Central de Continuar (Zona Segura Inferior) */}
-            <Link
-                href="/copiloto"
-                className="absolute bottom-32 left-1/2 -translate-x-1/2 flex items-center justify-center px-8 py-4 bg-white/10 backdrop-blur-md border-2 border-white text-white font-bold rounded-xl hover:bg-white/20 transition-all shadow-xl z-10 whitespace-nowrap"
-            >
-                CONTINUAR AL ASISTENTE
-            </Link>
+            {/* Botón Central e Instrucción (Zona Segura Inferior) */}
+            <div className="absolute bottom-32 left-1/2 -translate-x-1/2 flex flex-col items-center gap-6 w-full px-4">
+
+                <Link
+                    href="/copiloto"
+                    className="flex items-center justify-center px-10 py-4 bg-orange-600/90 hover:bg-orange-500 backdrop-blur-md border-2 border-orange-400/50 text-white font-black rounded-xl transition-all shadow-xl shadow-orange-900/50 whitespace-nowrap text-lg tracking-wider"
+                >
+                    COMENZAR MISIÓN PEDAGÓGICA
+                </Link>
+            </div>
         </main>
     );
 }

@@ -3,27 +3,33 @@
 @theme {
   --color-primary-50: #eff6ff;
   --color-primary-100: #dbeafe;
-  --color-primary-500: #60a5fa; /* Lighter vibrant blue for contrast with black */
-  --color-primary-600: #3b82f6; /* Classic striking blue */
+  --color-primary-500: #60a5fa;
+  /* Lighter vibrant blue for contrast with black */
+  --color-primary-600: #3b82f6;
+  /* Classic striking blue */
   --color-primary-700: #2563eb;
   --color-primary-900: #1d4ed8;
 
   --color-accent-50: #fffefc;
   --color-accent-100: #ffedd5;
-  --color-accent-500: #f97316; /* Striking Orange */
+  --color-accent-500: #f97316;
+  /* Striking Orange */
   --color-accent-600: #ea580c;
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 }
 
 :root {
-  --background: #ffffff; /* Striking White Background */
-  --foreground: #000000; /* Absolute Black Text Everywhere */
+  --background: #ffffff;
+  /* Striking White Background */
+  --foreground: #000000;
+  /* Absolute Black Text Everywhere */
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #ffffff; /* No dark mode to ensure black text visibility / user requested white/orange/blue module */
+    --background: #ffffff;
+    /* No dark mode to ensure black text visibility / user requested white/orange/blue module */
     --foreground: #000000;
   }
 }
@@ -41,7 +47,58 @@ body {
   .glass-panel {
     @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-xl;
   }
+
   .dark .glass-panel {
     @apply bg-slate-900/80 border-slate-700/50 shadow-xl;
   }
 }
+
+/* --- PHASE 7: PRINT LAYOUT OPTIMIZATION --- */
+@media print {
+  @page {
+    /* 2.5cm margin on all sides */
+    margin: 2.5cm;
+    size: auto;
+  }
+
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    background-color: transparent !important;
+    font-size: 11pt !important;
+    font-family: 'Calibri', sans-serif !important;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-size: 12pt !important;
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
+  p,
+  div {
+    font-size: 11pt;
+  }
+
+  table.rubric-table {
+    page-break-inside: avoid;
+    break-inside: avoid;
+    table-layout: fixed !important;
+    width: 100% !important;
+  }
+
+  table.rubric-table td,
+  table.rubric-table th {
+    width: 25% !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    white-space: normal !important;
+  }
+}
+
+/* ------------------------------------------ */

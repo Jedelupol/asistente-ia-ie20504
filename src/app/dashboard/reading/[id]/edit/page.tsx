@@ -54,7 +54,7 @@ export default function EditReadingPage({ params }: { params: Promise<{ id: stri
         setReading(prev => {
             if (!prev) return null;
             const newActivities = [...prev.actividades];
-            // @ts-ignore
+            // Update the specific field dynamically
             newActivities[index] = { ...newActivities[index], [field]: value };
             return { ...prev, actividades: newActivities };
         });
@@ -82,6 +82,31 @@ export default function EditReadingPage({ params }: { params: Promise<{ id: stri
             const newSequence = [...(prev.imagenesSecuencia || [])];
             newSequence.splice(index, 1);
             return { ...prev, imagenesSecuencia: newSequence };
+        });
+    };
+
+    const handleImagenesReferenciaChange = (index: number, value: string) => {
+        setReading(prev => {
+            if (!prev) return null;
+            const newRefs = [...(prev.imagenesReferencia || [])];
+            newRefs[index] = value;
+            return { ...prev, imagenesReferencia: newRefs };
+        });
+    };
+
+    const addImagenReferencia = () => {
+        setReading(prev => {
+            if (!prev) return null;
+            return { ...prev, imagenesReferencia: [...(prev.imagenesReferencia || []), ''] };
+        });
+    };
+
+    const removeImagenReferencia = (index: number) => {
+        setReading(prev => {
+            if (!prev) return null;
+            const newRefs = [...(prev.imagenesReferencia || [])];
+            newRefs.splice(index, 1);
+            return { ...prev, imagenesReferencia: newRefs };
         });
     };
 
@@ -211,6 +236,37 @@ export default function EditReadingPage({ params }: { params: Promise<{ id: stri
                                 </button>
                             </div>
                         )}
+                    </div>
+
+                    <div className="mb-10 p-6 bg-slate-50 border border-slate-200 rounded-2xl">
+                        <h3 className="font-bold text-black mb-4">Imágenes de Referencia (Unsplash o manual)</h3>
+                        <div className="space-y-4">
+                            <p className="text-sm font-medium text-slate-600 mb-2">Imágenes referenciales integradas dentro de la lectura.</p>
+                            {(reading.imagenesReferencia || []).map((imgUrl, idx) => (
+                                <div key={`ref-${idx}`} className="flex items-center gap-3">
+                                    <span className="font-bold text-slate-400 w-6">Img.</span>
+                                    <input
+                                        value={imgUrl}
+                                        onChange={(e) => handleImagenesReferenciaChange(idx, e.target.value)}
+                                        className="flex-grow p-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-primary-500 outline-none text-sm text-slate-900 bg-white shadow-sm"
+                                        placeholder="https://images.unsplash.com/..."
+                                    />
+                                    <button
+                                        onClick={() => removeImagenReferencia(idx)}
+                                        className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition-colors shrink-0"
+                                        title="Eliminar Imagen Referencia"
+                                    >
+                                        <Trash2 className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            ))}
+                            <button
+                                onClick={addImagenReferencia}
+                                className="flex items-center gap-2 mt-4 px-4 py-2 bg-primary-100/50 hover:bg-primary-100 text-primary-700 font-bold rounded-xl transition-colors text-sm"
+                            >
+                                <Plus className="w-4 h-4" /> Añadir Imagen de Referencia
+                            </button>
+                        </div>
                     </div>
 
                     <hr className="border-slate-100 my-10" />

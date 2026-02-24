@@ -18,6 +18,18 @@ export interface CompetencyActivity {
     rubricaEvaluacion?: RubricaLevel;
 }
 
+export interface CompletedReading {
+    id: string;
+    titulo: string;
+    grado: number;
+    tipoTexto: string;
+    portadaUrl: string;
+    contenido: string;
+    youtubeUrl?: string; // Nuevo
+    sugerenciaLibro?: string; // Nuevo
+    imagenesReferencia?: string[]; // Para Unsplash
+    actividades: CompetencyActivity[];
+}
 export interface Reading {
     id: string;
     titulo: string;
@@ -28,6 +40,7 @@ export interface Reading {
     contenido: string;
     youtubeUrl: string;
     sugerenciaLibro: string;
+    imagenesReferencia?: string[];
     actividades: CompetencyActivity[];
     esVisual?: boolean;
     imagenesSecuencia?: string[];
