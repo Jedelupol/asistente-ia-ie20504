@@ -193,6 +193,24 @@ export default function ReadingDetailPage() {
                                                     )}
                                                 </div>
 
+                                                {/* Reference Images in the left box */}
+                                                {reading.imagenesReferencia && reading.imagenesReferencia.length > 0 && (
+                                                    <div className="mt-4 space-y-3 print:hidden">
+                                                        {reading.imagenesReferencia.map((imgUrl, idx) => (
+                                                            <div key={idx} className="relative aspect-video rounded-2xl overflow-hidden shadow-sm border border-slate-200">
+                                                                <ImageWithFallback
+                                                                    src={imgUrl}
+                                                                    alt={`Imagen de referencia ${idx + 1}`}
+                                                                    fill
+                                                                    sizes="(max-width: 1024px) 50vw, 33vw"
+                                                                    className="object-cover"
+                                                                    fallbackIconSize={8}
+                                                                />
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+
                                                 <div className="flex flex-col gap-4 print:hidden">
 
                                                     {(reading.youtubeUrl || reading.sugerenciaLibro) && (
@@ -246,17 +264,6 @@ export default function ReadingDetailPage() {
                                                 <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 mb-6 leading-[1.15] tracking-tight">
                                                     {reading.titulo}
                                                 </h1>
-
-                                                {reading.imagenesReferencia && reading.imagenesReferencia.length > 0 && (
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 print:block text-center auto-cols-max">
-                                                        {reading.imagenesReferencia.map((imgUrl, idx) => (
-                                                            <figure key={idx} className="relative aspect-video rounded-2xl overflow-hidden shadow-sm border border-slate-200 print:mb-4 print:border-none print:shadow-none print:w-full max-w-[400px] print:mx-auto float-none !static">
-                                                                <ImageWithFallback src={imgUrl} alt="Imagen de Referencia" fill className="object-cover !static !w-full !h-auto" fallbackIconSize={8} />
-                                                                <figcaption className="absolute bottom-0 w-full bg-black/60 backdrop-blur-sm text-white text-xs font-semibold p-2 text-center print:hidden">Imagen de referencia extraída por IA</figcaption>
-                                                            </figure>
-                                                        ))}
-                                                    </div>
-                                                )}
 
                                                 <div className="prose prose-slate prose-lg max-w-none text-black leading-relaxed font-medium">
                                                     {reading.esVisual && reading.imagenesSecuencia ? (

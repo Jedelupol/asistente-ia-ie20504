@@ -181,7 +181,18 @@ export default function EditReadingPage({ params }: { params: Promise<{ id: stri
                         </div>
                         <div>
                             <label className="block text-sm font-bold text-black mb-2">URL de Portada</label>
-                            <input name="portadaUrl" value={reading.portadaUrl} onChange={handleChange} className="w-full p-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-primary-500 outline-none text-sm text-slate-900 bg-white shadow-sm" />
+                            <input name="portadaUrl" value={reading.portadaUrl} onChange={handleChange} className="w-full p-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-primary-500 outline-none text-sm text-slate-900 bg-white shadow-sm" placeholder="https://..." />
+                            {reading.portadaUrl && (
+                                <div className="mt-2 relative aspect-video w-full rounded-xl overflow-hidden border border-slate-200 bg-slate-100">
+                                    <img
+                                        src={reading.portadaUrl}
+                                        alt="Vista previa"
+                                        className="absolute inset-0 w-full h-full object-cover"
+                                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                    />
+                                    <span className="absolute bottom-1 right-2 text-[10px] text-slate-400 font-bold">Vista previa</span>
+                                </div>
+                            )}
                         </div>
                         <div>
                             <label className="block text-sm font-bold text-black mb-2">Enlace de YouTube (opcional)</label>

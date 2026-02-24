@@ -8,9 +8,11 @@ import { Bot, Sparkles, MapPin, Target, Loader2, BookOpen, PenTool, MessageCircl
 import ImageWithFallback from '@/components/ImageWithFallback';
 import Image from 'next/image';
 
+type ActivityType = 'oralidad' | 'lectura' | 'escritura' | 'cantidad' | 'regularidad' | 'forma' | 'datos';
+
 interface Activity {
     id: string;
-    type: 'oralidad' | 'lectura' | 'escritura';
+    type: ActivityType;
     pregunta: string;
     respuestaEsperada: string;
     capacidad: string;
@@ -30,7 +32,11 @@ interface GeneratedReading {
     grado: number;
     tipoTexto: string;
     portadaUrl: string;
+    // Matemática-only narrative hook (optional for Comunicación/STEAM)
+    misionAprendizaje?: string;
     contenido: string;
+    // Instructions block shown between reading and activities
+    consigna?: string;
     youtubeUrl: string;
     sugerenciaLibro: string;
     searchKeywords?: string;
@@ -52,7 +58,7 @@ export default function CopilotPage() {
     });
 
     const [generatedReading, setGeneratedReading] = useState<GeneratedReading | null>(null);
-    const [activeTab, setActiveTab] = useState<'lectura' | 'escritura' | 'oralidad'>('lectura');
+    const [activeTab, setActiveTab] = useState<ActivityType>('lectura');
 
     const handleGenerate = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -62,7 +68,67 @@ export default function CopilotPage() {
             const competenciasUnidas = formData.competencia.join(', ');
             let promptText = '';
 
-            if (formData.area === 'Comunicación') {
+            // ═══════════════════════════════════════
+            // ÁREA: MATEMÁTICA — MOTOR EXCLUSIVO CNEB
+            // ═══════════════════════════════════════
+            if (formData.area === 'Matemática') {
+                promptText = `Eres un especialista pedagógico de MATEMÁTICA del CNEB de Perú. Tu misión es crear material educativo articulado donde la LECTURA sirve de CONTEXTO para extraer datos numéricos, situaciones espaciales o estadísticas que el estudiante resuelve matemáticamente.
+
+DATOS DEL DOCENTE:
+- Área: MATEMÁTICA (CNEB Perú)
+- Nivel: ${formData.nivelMaestro}
+- Grado: ${formData.ciclo}
+- Competencias a evaluar: ${competenciasUnidas}
+- Situación Significativa: ${formData.contexto}
+- Valor Transversal: ${formData.valor}
+
+REGLAS INQUEBRANTABLES PARA EL ÁREA MATEMÁTICA:
+1. El campo "contenido" debe ser una lectura/situación problemática que incluya datos numéricos explícitos (cantidades, medidas, fracciones, estadísticas, coordenadas, etc.) que sirvan de insumo para las actividades matemáticas.
+2. Genera UNA actividad por cada competencia seleccionada. El "type" de cada actividad DEBE ser EXACTAMENTE uno de: "cantidad", "regularidad", "forma", "datos". NUNCA uses "lectura", "escritura" u "oralidad" como type.
+3. - "cantidad" → competencia: Resuelve problemas de Cantidad
+   - "regularidad" → competencia: Resuelve problemas de Regularidad, Equivalencia y Cambio
+   - "forma" → competencia: Resuelve problemas de Forma, Movimiento y Localización
+   - "datos" → competencia: Resuelve problemas de Gestión de Datos e Incertidumbre
+4. Cada actividad debe plantear un RETO matemático concreto que el estudiante resuelve usando los datos del texto.
+5. La rúbrica debe evaluar la RESOLUCIÓN MATEMÁTICA, NO la comprensión lectora.
+6. PROHIBICIÓN TOTAL: En ningún campo uses las palabras Lectura, Escritura u Oralidad como categorías de actividad.
+7. Motor Lúdico: Si es Primaria, contextualiza los problemas matemáticos en aventuras, superhéroes o escenarios fantásticos usando los datos del texto.
+8. RESTRICCIÓN IDIOMA: Todo 100% en español.
+9. portadaUrl: "https://image.pollinations.ai/prompt/[keywords+en+ingles+relacionados+a+matematica+y+el+contexto]?width=600&height=400&nologo=true"
+10. youtubeUrl: "https://www.youtube.com/results?search_query=[palabras+clave+matematica+en+español]"
+
+Estructura JSON OBLIGATORIA para Matemática (devuelve SOLO el JSON, sin bloques de código):
+{
+  "id": "copilot-gen-dyn",
+  "titulo": "[Título atractivo que mencione el contexto matemático]",
+  "grado": ${parseInt(formData.ciclo.match(/\d/)?.[0] || '3')},
+  "tipoTexto": "Situación Problemática Matemática",
+  "portadaUrl": "https://image.pollinations.ai/prompt/...",
+  "misionAprendizaje": "[Párrafo motivador (estilo aventura o superhéroe) que plantea el desafío donde la Matemática es la solución. Ej: ¡La ciudad de Neo-Andina se queda sin energía! Tu misión: calcular los flujos de las redes eléctricas para evitar el gran apagón. ¡La Matemática es tu único superpoder!]",
+  "contenido": "[Narrativa/situación problemática con datos numéricos explícitos que alimentan TODAS las competencias seleccionadas. SIN tags HTML visibles.]",
+  "consigna": "Lee con atención el texto e identifica los datos numéricos.\n1. Identifica y anota todos los datos, cantidades y medidas del texto.\n2. Modela la situación matemáticamente: dibuja, escribe expresiones o haz una tabla.\n3. Resuelve usando la estrategia de cada competencia (operar, graficar, medir o analizar datos).\n4. Verifica tu respuesta y redacta una conclusión.",
+  "youtubeUrl": "https://www.youtube.com/results?search_query=...",
+  "sugerenciaLibro": "[Título de libro relacionado]",
+  "searchKeywords": "[2-3 keywords en inglés para imagen]",
+  "actividades": [
+    {
+      "id": "act-mat-1",
+      "type": "cantidad",
+      "pregunta": "[Reto matemático usando datos explícitos del texto]",
+      "respuestaEsperada": "[Solución matemática con procedimiento paso a paso]",
+      "capacidad": "Traduce cantidades a expresiones numéricas y opera con ellas.",
+      "estandar": "[Estándar CNEB alineado a Cantidad para el grado]",
+      "estrategiasAplicacion": "[Estrategia lúdica matemática]",
+      "rubricaEvaluacion": { "destacado": "string", "logrado": "string", "proceso": "string", "inicio": "string" }
+    }
+  ]
+}
+Genera exactamente las actividades correspondientes a las competencias seleccionadas: ${competenciasUnidas}`;
+
+                // ═══════════════════════════════════════
+                // ÁREA: COMUNICACIÓN
+                // ═══════════════════════════════════════
+            } else if (formData.area === 'Comunicación') {
                 promptText = `Eres un asistente pedagógico de élite experto en el CNEB de Perú.
 Genera contenido educativo con rigor curricular y creatividad excepcional. No uses formato markdown.
 
@@ -74,63 +140,78 @@ DATOS DEL DOCENTE PARA EL DIAGNÓSTICO:
 - Contexto Institucional / Situación Significativa: ${formData.contexto}
 - Desafío, Valor o Tema a priorizar: ${formData.valor}
 
-INSTRUCCIONES DE CONTENIDO (ESTÁNDAR DE EXCELENCIA PEDAGÓGICA - ACTUALIZACIÓN V2):
-- DIVERSIDAD TEMÁTICA: Evita repetir temas. Si es sobre tecnología, no uses solo drones o Arduino. Rota entre Inteligencia Artificial, Biotecnología, Exploración Espacial, Energías Renovables, Realidad Virtual, Impresión 3D y Ciberseguridad.
-- MOTOR LÚDICO (Primaria): Si el nivel es Primaria, integra activamente referencias a la cultura pop (All Might, superhéroes, dibujos animados) y contextos de alta fantasía.
-- ESCENARIOS VARIADOS: No te limites siempre a Pativilca. Contextualiza en el espacio exterior, el mundo microscópico, o ciudades futuristas, combinándolo mágicamente con la Situación Significativa.
+INSTRUCCIONES DE CONTENIDO (ESTÁNDAR DE EXCELENCIA PEDAGÓGICA):
+- DIVERSIDAD TEMÁTICA: Evita repetir temas. Rota entre IA, Biotecnología, Exploración Espacial, Energías Renovables, Realidad Virtual, Impresión 3D y Ciberseguridad.
+- MOTOR LÚDICO (Primaria): Si el nivel es Primaria, integra referencias a la cultura pop (All Might, superhéroes, dibujos animados) y contextos de alta fantasía.
+- ESCENARIOS VARIADOS: No te limites siempre a Pativilca. Contextualiza en el espacio exterior, el mundo microscópico, o ciudades futuristas.
 - EL ESTUDIANTE COMO PROTAGONISTA: El texto debe dirigirse al estudiante como investigador, héroe, ingeniero o explorador.
-- RESTRICCIÓN DE IDIOMA ESTRICTA: Todo el contenido, incluyendo sugerencias de libros y el enlace a YouTube ('youtubeUrl'), DEBE SER 100% EN ESPAÑOL. No incluyas enlaces a videos en inglés.
-- REGLA DE ORO INQUEBRANTABLE: JAMÁS omitas 'portadaUrl', 'youtubeUrl', ni las 3 actividades (Lectura, Escritura, Oralidad) ni las rúbricas. Reduce la historia si es necesario para conservar la estructura JSON impecable.
-- 'portadaUrl' debe ser una URL de imagen con palabras clave en inglés (ej: "https://image.pollinations.ai/prompt/[terminos+en+ingles]?width=600&height=400&nologo=true").
-- 'youtubeUrl': "https://www.youtube.com/results?search_query=[palabras+clave+EN+ESPAÑOL]".
+- RESTRICCIÓN DE IDIOMA ESTRICTA: Todo el contenido, incluyendo sugerencias de libros y youtubeUrl, en 100% ESPAÑOL.
+- REGLA DE ORO: JAMÁS omitas portadaUrl, youtubeUrl, ni las 3 actividades (type: lectura, escritura, oralidad) ni las rúbricas.
+- portadaUrl: "https://image.pollinations.ai/prompt/[terminos+en+ingles]?width=600&height=400&nologo=true"
+- youtubeUrl: "https://www.youtube.com/results?search_query=[palabras+clave+EN+ESPAÑOL]"
+- searchKeywords: 2-3 palabras en inglés. Si es ficción usa keywords artísticas (ej: "heroic energy neon").
 
-En el campo 'searchKeywords', debes extraer exactamente 2 o 3 palabras clave EN INGLÉS precisas para imagen. REGLA ESTRICTA: Si es ficción (Anime), extrae keywords hiper-abstractas y artísticas en inglés (ej: "heroic energy neon", "futuristic neon city").`;
-            } else {
-                const steamInfo = isSecundariaVar
-                    ? " Integra fuertemente conceptos avanzados de Electrónica, Arduino o Ciencia de Datos (STEAM)."
-                    : " Usa un enfoque maker, robots simples y exploración.";
-                promptText = `Eres un asistente pedagógico de élite experto en el CNEB de Perú.
-Genera contenido educativo con rigor curricular y creatividad excepcional. No uses formato markdown.
-
-DATOS DEL DOCENTE PARA EL DIAGNÓSTICO:
-- Área: ${formData.area}
-- Nivel Maestro: ${formData.nivelMaestro}
-- Grado objetivo: ${formData.ciclo}
-- Competencias seleccionadas: ${competenciasUnidas}
-- Contexto Institucional / Situación Significativa: ${formData.contexto}
-- Desafío, Valor o Tema a priorizar: ${formData.valor}
-
-INSTRUCCIONES DE CONTENIDO (ESTÁNDAR DE EXCELENCIA PEDAGÓGICA - ACTUALIZACIÓN V2):
-- DIVERSIDAD TEMÁTICA: Evita repetir temas. Si es sobre tecnología, no uses solo drones o Arduino. Rota entre Inteligencia Artificial, Biotecnología, Exploración Espacial, Energías Renovables, Realidad Virtual, Impresión 3D y Ciberseguridad.
-- MOTOR LÚDICO (Primaria): Si el nivel es Primaria, integra activamente referencias a la cultura pop (All Might, superhéroes, dibujos animados) y contextos de alta fantasía.
-- ESCENARIOS VARIADOS: No te limites siempre a Pativilca. Contextualiza en el espacio exterior, el mundo microscópico, o ciudades futuristas, combinándolo mágicamente con la Situación Significativa.
-- EL ESTUDIANTE COMO PROTAGONISTA: El texto debe dirigirse al estudiante como investigador, héroe, ingeniero o explorador.${steamInfo}
-- RESTRICCIÓN DE IDIOMA ESTRICTA: Todo el contenido, incluyendo sugerencias de libros y el enlace a YouTube ('youtubeUrl'), DEBE SER 100% EN ESPAÑOL. No incluyas enlaces a videos en inglés.
-- REGLA DE ORO INQUEBRANTABLE: JAMÁS omitas 'portadaUrl', 'youtubeUrl', ni las 3 actividades (Lectura, Escritura, Oralidad) ni las rúbricas. Si el nivel Secundaria genera mucho texto, reduce la longitud de la historia, pero NUNCA sacrifiques la estructura JSON ni las actividades pedagógicas obligatorias.
-- 'portadaUrl' debe ser una URL de imagen con palabras clave en inglés (ej: "https://image.pollinations.ai/prompt/[terminos+en+ingles]?width=600&height=400&nologo=true").
-- 'youtubeUrl': "https://www.youtube.com/results?search_query=[palabras+clave+EN+ESPAÑOL]".
-
-En el campo 'searchKeywords', debes extraer exactamente 2 o 3 palabras clave EN INGLÉS precisas para imagen. REGLA ESTRICTA: Si es ficción (Anime), extrae keywords hiper-abstractas y artísticas en inglés (ej: "heroic energy neon", "futuristic neon city"). Si es ciencia, usa términos realistas (ej: "dna biotech").`;
-            }
-
-            // Output structure hint
-            promptText += `
-
-Estructura de JSON base referencial (Devuelve esto pero con tu lista de actividades dinámicas según lo marcado):
+JSON base (devuelve SOLO el JSON):
 {
   "id": "copilot-gen-dyn",
   "titulo": "string",
   "grado": ${parseInt(formData.ciclo.match(/\d/)?.[0] || '5')},
   "tipoTexto": "string",
   "portadaUrl": "https://image.pollinations.ai/prompt/...",
-  "contenido": "[[Narrativa vibrante]]<br/><br/><strong>🏃‍♂️ RETO OFFLINE:</strong> [[Descripción]]",
+  "contenido": "[[Narrativa vibrante. Sin tags HTML visibles.]]",
   "youtubeUrl": "https://www.youtube.com/results?search_query=...",
   "sugerenciaLibro": "string",
   "searchKeywords": "string",
   "actividades": [
-    { "id": "act-1", "type": "lectura", "pregunta": "🎯 [Consigna usando verbo CNEB]", "respuestaEsperada": "string", "capacidad": "[Alineada a una de las competencias marcadas]", "estandar": "string", "estrategiasAplicacion": "string", "rubricaEvaluacion": { "destacado": "string", "logrado": "string", "proceso": "string", "inicio": "string" } }
+    { "id": "act-1", "type": "lectura", "pregunta": "[Consigna CNEB]", "respuestaEsperada": "string", "capacidad": "string", "estandar": "string", "estrategiasAplicacion": "string", "rubricaEvaluacion": { "destacado": "string", "logrado": "string", "proceso": "string", "inicio": "string" } },
+    { "id": "act-2", "type": "escritura", "pregunta": "string", "respuestaEsperada": "string", "capacidad": "string", "estandar": "string", "estrategiasAplicacion": "string", "rubricaEvaluacion": { "destacado": "string", "logrado": "string", "proceso": "string", "inicio": "string" } },
+    { "id": "act-3", "type": "oralidad", "pregunta": "string", "respuestaEsperada": "string", "capacidad": "string", "estandar": "string", "estrategiasAplicacion": "string", "rubricaEvaluacion": { "destacado": "string", "logrado": "string", "proceso": "string", "inicio": "string" } }
   ]
 }`;
+
+                // ═══════════════════════════════════════
+                // ÁREA: INTEGRADA (STEAM)
+                // ═══════════════════════════════════════
+            } else {
+                const steamInfo = isSecundariaVar
+                    ? " Integra fuertemente conceptos avanzados de Electrónica, Arduino o Ciencia de Datos (STEAM)."
+                    : " Usa un enfoque maker, robots simples y exploración.";
+                promptText = `Eres un asistente pedagógico de élite experto en el CNEB de Perú.
+Genera contenido educativo con rigor curricular y creatividad excepcional.${steamInfo}
+
+DATOS DEL DOCENTE:
+- Área: ${formData.area}
+- Nivel Maestro: ${formData.nivelMaestro}
+- Grado objetivo: ${formData.ciclo}
+- Competencias seleccionadas: ${competenciasUnidas}
+- Contexto Institucional: ${formData.contexto}
+- Valor Transversal: ${formData.valor}
+
+INSTRUCCIONES:
+- DIVERSIDAD TEMÁTICA: Rota entre IA, Biotecnología, Exploración Espacial, Energías Renovables, Robótica, Impresión 3D.
+- RESTRICCIÓN DE IDIOMA: Todo 100% en español. Sin videos en inglés.
+- REGLA DE ORO: NUNCA omitas portadaUrl, youtubeUrl ni las 3 actividades con rúbricas.
+- portadaUrl: "https://image.pollinations.ai/prompt/[keywords+ingles]?width=600&height=400&nologo=true"
+- youtubeUrl: "https://www.youtube.com/results?search_query=[español]"
+
+JSON (devuelve SOLO el JSON):
+{
+  "id": "copilot-gen-dyn",
+  "titulo": "string",
+  "grado": ${parseInt(formData.ciclo.match(/\d/)?.[0] || '5')},
+  "tipoTexto": "string",
+  "portadaUrl": "https://image.pollinations.ai/prompt/...",
+  "contenido": "string",
+  "youtubeUrl": "https://www.youtube.com/results?search_query=...",
+  "sugerenciaLibro": "string",
+  "searchKeywords": "string",
+  "actividades": [
+    { "id": "act-1", "type": "lectura", "pregunta": "string", "respuestaEsperada": "string", "capacidad": "string", "estandar": "string", "estrategiasAplicacion": "string", "rubricaEvaluacion": { "destacado": "string", "logrado": "string", "proceso": "string", "inicio": "string" } },
+    { "id": "act-2", "type": "escritura", "pregunta": "string", "respuestaEsperada": "string", "capacidad": "string", "estandar": "string", "estrategiasAplicacion": "string", "rubricaEvaluacion": { "destacado": "string", "logrado": "string", "proceso": "string", "inicio": "string" } },
+    { "id": "act-3", "type": "oralidad", "pregunta": "string", "respuestaEsperada": "string", "capacidad": "string", "estandar": "string", "estrategiasAplicacion": "string", "rubricaEvaluacion": { "destacado": "string", "logrado": "string", "proceso": "string", "inicio": "string" } }
+  ]
+}`;
+            }
 
             const res = await fetch('/api/copilot/generate', {
                 method: 'POST',
@@ -224,7 +305,10 @@ Estructura de JSON base referencial (Devuelve esto pero con tu lista de activida
                             required
                             className="w-full bg-white border border-slate-200 text-slate-900 font-bold text-sm rounded-xl focus:ring-orange-500 focus:border-orange-500 block p-3.5 appearance-none"
                             value={formData.area}
-                            onChange={(e) => setFormData({ ...formData, area: e.target.value, competencia: [] })}
+                            onChange={(e) => {
+                                setFormData({ ...formData, area: e.target.value, competencia: [] });
+                                setActiveTab(e.target.value === 'Matem\u00e1tica' ? 'cantidad' : 'lectura');
+                            }}
                         >
                             <option value="Comunicación">Comunicación</option>
                             <option value="Matemática">Matemática</option>
@@ -407,12 +491,12 @@ Estructura de JSON base referencial (Devuelve esto pero con tu lista de activida
 
     const renderResult = () => {
         if (!generatedReading) return null;
-        const activeActivities = generatedReading.actividades.filter(a => a.type === activeTab);
 
         const handlePrint = () => {
             if (!generatedReading) return;
             const originalTitle = document.title;
-            document.title = `${generatedReading.titulo.replace(/[^a-zA-Z0-9]/g, '_')}_${generatedReading.grado}`;
+            const areaSuffix = formData.area === 'Matemática' ? '_Matematica' : '';
+            document.title = `${generatedReading.titulo.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ]/g, '_')}_${generatedReading.grado}${areaSuffix}`;
 
             setTimeout(() => {
                 window.print();
@@ -420,10 +504,38 @@ Estructura de JSON base referencial (Devuelve esto pero con tu lista de activida
             }, 100);
         };
 
+        // Helper: strip literal HTML tags from plain text fields (PDF safety)
+        const stripTags = (text: string | undefined | null) => {
+            if (!text) return '';
+            return text.replace(/<[^>]*>/g, '');
+        };
+        void stripTags; // used via formatBoldText pre-processing
+
         const formatBoldText = (text: string | undefined | null) => {
             if (!text) return '';
-            return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>');
+            // First strip any literal HTML that the AI may have included in non-HTML fields
+            const clean = text.replace(/<strong>/g, '').replace(/<\/strong>/g, '').replace(/<em>/g, '').replace(/<\/em>/g, '');
+            return clean.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>');
         };
+
+        // Label & color mappings for math competency types
+        const MATH_TAB_CONFIG: Record<string, { label: string; icon: string; color: string }> = {
+            cantidad: { label: 'Cantidad', icon: '🔢', color: 'blue' },
+            regularidad: { label: 'Regularidad', icon: '📐', color: 'purple' },
+            forma: { label: 'Forma y Localiz.', icon: '📍', color: 'green' },
+            datos: { label: 'Datos e Incertidumbre', icon: '📊', color: 'orange' },
+        };
+        const MATH_FULL_NAMES: Record<string, string> = {
+            cantidad: 'Resuelve problemas de Cantidad',
+            regularidad: 'Resuelve problemas de Regularidad, Equivalencia y Cambio',
+            forma: 'Resuelve problemas de Forma, Movimiento y Localización',
+            datos: 'Resuelve problemas de Gestión de Datos e Incertidumbre',
+        };
+        const isMath = formData.area === 'Matemática';
+        // Set of activity types present in this reading
+        const presentMathTabs = isMath
+            ? generatedReading.actividades.map(a => a.type).filter((t, i, arr) => arr.indexOf(t) === i)
+            : [];
 
         return (
             <div className="max-w-[1400px] mx-auto pb-20 print:bg-white print:pb-0">
@@ -495,10 +607,29 @@ Estructura de JSON base referencial (Devuelve esto pero con tu lista de activida
 
                                     {/* Right Column: Content & CNEB */}
                                     <div className="lg:col-span-8 flex flex-col gap-10 print:block">
+
+                                        {/* ══ MISIÓN DE APRENDIZAJE (Matemática only) ══ */}
+                                        {isMath && generatedReading.misionAprendizaje && (
+                                            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-700 p-7 shadow-xl shadow-blue-900/20 print:rounded-none print:shadow-none print:bg-white print:border-2 print:border-blue-700 print:p-5 print:break-inside-avoid">
+                                                {/* decorative circles */}
+                                                <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-white/5 print:hidden" />
+                                                <div className="absolute -bottom-6 -left-6 w-28 h-28 rounded-full bg-white/5 print:hidden" />
+                                                <div className="flex items-center gap-3 mb-3">
+                                                    <span className="text-3xl" role="img" aria-label="misión">🚀</span>
+                                                    <h2 className="text-lg font-black text-white uppercase tracking-[0.12em] print:text-blue-900">
+                                                        Misión de Aprendizaje
+                                                    </h2>
+                                                </div>
+                                                <p className="text-white/95 font-semibold text-base leading-relaxed print:text-black">
+                                                    {generatedReading.misionAprendizaje}
+                                                </p>
+                                            </div>
+                                        )}
+
                                         {/* Reading Content */}
                                         <div className="bg-white rounded-3xl border border-slate-200/60 p-6 sm:p-10 shadow-lg shadow-slate-900/5 print:border-none print:shadow-none print:p-0 print:break-inside-avoid">
                                             <h2 className="text-2xl font-black text-black mb-8 pb-4 border-b border-slate-100 flex items-center gap-3">
-                                                Texto de Lectura
+                                                {isMath ? 'Situación Problemática' : 'Texto de Lectura'}
                                             </h2>
                                             {generatedReading.imagenesReferencia && generatedReading.imagenesReferencia.length > 0 && (
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 print:block text-center auto-cols-max">
@@ -510,16 +641,36 @@ Estructura de JSON base referencial (Devuelve esto pero con tu lista de activida
                                                     ))}
                                                 </div>
                                             )}
-                                            <div className="text-black text-lg leading-relaxed font-medium space-y-4">
-                                                <div dangerouslySetInnerHTML={{ __html: generatedReading.contenido.replace(/\n\n/g, '<br/><br/>') }} />
+                                            <div className="text-black text-base leading-relaxed font-medium space-y-4">
+                                                <div dangerouslySetInnerHTML={{ __html: generatedReading.contenido.replace(/\n/g, '<br/>') }} />
                                             </div>
                                         </div>
+
+                                        {/* ══ CONSIGNA DE TRABAJO (Matemática only) ══ */}
+                                        {isMath && generatedReading.consigna && (
+                                            <div className="bg-amber-50 border-l-4 border-amber-500 rounded-2xl p-6 shadow-sm print:rounded-none print:shadow-none print:break-inside-avoid print:border-l-4 print:border-amber-600">
+                                                <div className="flex items-center gap-2 mb-4">
+                                                    <span className="text-2xl">📋</span>
+                                                    <h3 className="text-lg font-black text-amber-900 uppercase tracking-wider">
+                                                        Consigna de Trabajo
+                                                    </h3>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    {generatedReading.consigna.split('\n').map((line, i) => (
+                                                        <p key={i} className={`text-amber-950 leading-relaxed ${line.match(/^\d+\./) ? 'font-bold pl-2' : 'font-semibold text-sm'
+                                                            }`}>
+                                                            {line}
+                                                        </p>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
 
                                         {/* Evaluation Area */}
                                         <div className="bg-white rounded-3xl border border-slate-200/60 p-6 sm:p-10 shadow-lg shadow-slate-900/5 print:border-none print:shadow-none print:p-0 print:mt-10">
                                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 border-b border-slate-100 pb-6 print:pb-2">
                                                 <h2 className="text-2xl lg:text-3xl font-extrabold text-black flex items-center gap-3">
-                                                    Evaluación <span className="text-orange-600">CNEB</span>
+                                                    {isMath ? 'Resolución de Problemas' : 'Evaluación'} <span className="text-orange-600">CNEB</span>
                                                 </h2>
                                                 <span className="text-xs font-bold text-orange-700 bg-orange-50 px-4 py-2 rounded-lg border border-orange-200 uppercase tracking-wide flex items-center gap-2 print:hidden">
                                                     <Bot className="w-4 h-4" /> Validado por IA
@@ -528,24 +679,44 @@ Estructura de JSON base referencial (Devuelve esto pero con tu lista de activida
 
                                             {/* Tabs: Dinámicos por Área */}
                                             <div className="flex flex-wrap bg-slate-50 rounded-xl border border-slate-200 p-1.5 mb-8 gap-1.5 print:hidden">
-                                                <button
-                                                    onClick={() => setActiveTab('lectura')}
-                                                    className={`flex-1 min-w-[120px] flex justify-center items-center gap-2 py-3 px-4 rounded-lg font-black text-sm transition-all ${activeTab === 'lectura' ? 'bg-black text-white shadow-md scale-[1.02]' : 'text-black bg-slate-200 hover:bg-slate-300'}`}
-                                                >
-                                                    <BookOpen className="w-5 h-5" /> {formData.area === 'Comunicación' ? 'Lectura' : 'Comprensión'}
-                                                </button>
-                                                <button
-                                                    onClick={() => setActiveTab('escritura')}
-                                                    className={`flex-1 min-w-[120px] flex justify-center items-center gap-2 py-3 px-4 rounded-lg font-black text-sm transition-all ${activeTab === 'escritura' ? 'bg-black text-white shadow-md scale-[1.02]' : 'text-black bg-slate-200 hover:bg-slate-300'}`}
-                                                >
-                                                    <PenTool className="w-5 h-5" /> {formData.area === 'Comunicación' ? 'Escritura' : 'Resolución'}
-                                                </button>
-                                                <button
-                                                    onClick={() => setActiveTab('oralidad')}
-                                                    className={`flex-1 min-w-[120px] flex justify-center items-center gap-2 py-3 px-4 rounded-lg font-black text-sm transition-all ${activeTab === 'oralidad' ? 'bg-black text-white shadow-md scale-[1.02]' : 'text-black bg-slate-200 hover:bg-slate-300'}`}
-                                                >
-                                                    <MessageCircle className="w-5 h-5" /> {formData.area === 'Comunicación' ? 'Oralidad' : 'Argumentación'}
-                                                </button>
+                                                {isMath ? (
+                                                    // Tabs for Matemática — show only tabs that exist in the generated reading
+                                                    presentMathTabs.map(tabType => {
+                                                        const cfg = MATH_TAB_CONFIG[tabType] || { label: tabType, icon: '✅', color: 'slate' };
+                                                        return (
+                                                            <button
+                                                                key={tabType}
+                                                                onClick={() => setActiveTab(tabType as ActivityType)}
+                                                                className={`flex-1 min-w-[120px] flex justify-center items-center gap-2 py-3 px-4 rounded-lg font-black text-sm transition-all ${activeTab === tabType ? 'bg-black text-white shadow-md scale-[1.02]' : 'text-black bg-slate-200 hover:bg-slate-300'
+                                                                    }`}
+                                                            >
+                                                                <span>{cfg.icon}</span> {cfg.label}
+                                                            </button>
+                                                        );
+                                                    })
+                                                ) : (
+                                                    // Tabs for Comunicación / STEAM
+                                                    <>
+                                                        <button
+                                                            onClick={() => setActiveTab('lectura')}
+                                                            className={`flex-1 min-w-[120px] flex justify-center items-center gap-2 py-3 px-4 rounded-lg font-black text-sm transition-all ${activeTab === 'lectura' ? 'bg-black text-white shadow-md scale-[1.02]' : 'text-black bg-slate-200 hover:bg-slate-300'}`}
+                                                        >
+                                                            <BookOpen className="w-5 h-5" /> Lectura
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setActiveTab('escritura')}
+                                                            className={`flex-1 min-w-[120px] flex justify-center items-center gap-2 py-3 px-4 rounded-lg font-black text-sm transition-all ${activeTab === 'escritura' ? 'bg-black text-white shadow-md scale-[1.02]' : 'text-black bg-slate-200 hover:bg-slate-300'}`}
+                                                        >
+                                                            <PenTool className="w-5 h-5" /> {formData.area === 'Comunicación' ? 'Escritura' : 'Resolución'}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setActiveTab('oralidad')}
+                                                            className={`flex-1 min-w-[120px] flex justify-center items-center gap-2 py-3 px-4 rounded-lg font-black text-sm transition-all ${activeTab === 'oralidad' ? 'bg-black text-white shadow-md scale-[1.02]' : 'text-black bg-slate-200 hover:bg-slate-300'}`}
+                                                        >
+                                                            <MessageCircle className="w-5 h-5" /> {formData.area === 'Comunicación' ? 'Oralidad' : 'Argumentación'}
+                                                        </button>
+                                                    </>
+                                                )}
                                             </div>
 
                                             <div className="space-y-8">
@@ -561,11 +732,15 @@ Estructura de JSON base referencial (Devuelve esto pero con tu lista de activida
                                                 )}
 
                                                 {generatedReading.actividades.map((activity, index) => (
+                                                    // In print mode: show ALL activities. On screen: only active tab.
                                                     <div key={activity.id} className={`bg-white rounded-2xl border border-slate-200 p-6 lg:p-8 flex-col gap-6 relative overflow-hidden group hover:border-orange-300 transition-colors shadow-sm hover:shadow-md print:break-inside-avoid print:shadow-none print:border-slate-300 print:mt-8 print:!flex ${activity.type === activeTab ? 'flex' : 'hidden'}`}>
 
-                                                        {/* Activity Type Badge */}
+                                                        {/* Activity Type Badge — shows full CNEB competency name for Math */}
                                                         <div className="absolute top-0 right-0 bg-slate-100 px-4 py-1.5 text-[10px] sm:text-xs font-black uppercase tracking-widest text-slate-500 rounded-bl-2xl border-b border-l border-slate-200 print:bg-slate-50 print:border-slate-300 print:text-black">
-                                                            Competencia: {activity.type}
+                                                            {isMath
+                                                                ? (MATH_FULL_NAMES[activity.type] || activity.type)
+                                                                : `Competencia: ${activity.type}`
+                                                            }
                                                         </div>
 
                                                         <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-orange-400 to-orange-600 opacity-60 print:hidden"></div>

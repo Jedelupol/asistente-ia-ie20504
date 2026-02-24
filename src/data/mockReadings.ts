@@ -247,7 +247,7 @@ export const mockReadings: Reading[] = [
         titulo: 'Los Ricos Alfajores de Mi Abuela',
         grado: 2,
         tipoTexto: 'Receta Instructiva',
-        portadaUrl: 'https://image.pollinations.ai/prompt/peruvian%20alfajores%20cookies%20with%20dulce%20de%20leche%20pedagogical%20illustration?width=800&height=600&nologo=true', // Genuine Alfajores
+        portadaUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/59/Alfajores.jpg/1280px-Alfajores.jpg', // Alfajores peruanos
         contenido: '<b>¡Hola, amiguitos!</b> Soy Juanito, y vivo cerquita al mercado de Barranca. Mi abuela prepara los alfajores de maicena más suaves del mundo entero.\n\n?? <b>INGREDIENTES MÁGICOS:</b>\n- 2 tazas secretas de maicena blanca como la nieve.\n- 1 taza de harina suavizada.\n- Mucho manjar blanco dulce.\n- Coco rallado para decorar.\n\n????? <b>PASOS PARA LA MAGIA:</b>\n1. Mezcla todo con las manos limpias hasta tener una masa gordita.\n2. Con un rodillo, aplana la masa y corta circulitos (¡parecen monedas!).\n3. Llévalos al horno calientito con mucho cuidado y ayuda de mamá.\n4. Al final, únelos con mucho manjar blanco y pásalos por el coco.\n\n¡Anímate a prepararlos el domingo con tu familia!',
         youtubeUrl: 'https://www.youtube.com/watch?v=Evze31m1F28', // Como hacer alfajores de maicena
         sugerenciaLibro: 'Recetario Divertido para Niños Pequeños',
@@ -533,7 +533,7 @@ export const mockReadings: Reading[] = [
         titulo: 'La Dulce Caña de Azúcar de nuestro Valle',
         grado: 3,
         tipoTexto: 'Historia Local',
-        portadaUrl: 'https://image.pollinations.ai/prompt/sugar%20cane%20harvest%20fields%20in%20peru%20sunny%20pedagogical%20illustration?width=800&height=600&nologo=true',
+        portadaUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/31/Sugarcane_fields_in_Cuba.jpg/1280px-Sugarcane_fields_in_Cuba.jpg', // Caña de azúcar
         contenido: 'Nuestra tierra de Pativilca es abrazada por un inmenso mar verde que se mueve al ritmo del viento. No es un mar de agua salada, sino un mar dulce: los grandes campos de caña de azúcar.\n\nDesde hace muchos años, los abuelos de nuestros abuelos trabajaban en los campos cortando la noble caña bajo el sol ardiente. Esta planta, alta y fuerte, llega en grandes camiones al molino donde la trituran para sacar su jugo.\n\nEse jugo oscuro y pegajoso se convierte luego en la rubia azúcar que endulza nuestro desayuno y nos da energía para jugar. Cuando el viento sopla fuerte en el valle, trae consigo ese aroma a caña fresca que nos recuerda el trabajo duro de nuestra comunidad.\n\nLa caña de azúcar es el motor de muchas familias en Pativilca, Paramonga y todo el Norte Chico.',
         youtubeUrl: 'https://www.youtube.com/watch?v=-s72whvPW3Q', // Caña de azucar Paramonga
         sugerenciaLibro: 'Campos de Dulzura',
@@ -764,7 +764,7 @@ export const mockReadings: Reading[] = [
         titulo: 'El Diario de un Arquitecto de Caral',
         grado: 5,
         tipoTexto: 'Diario Histórico',
-        portadaUrl: 'https://image.pollinations.ai/prompt/ancient%20caral%20pyramids%20ruins%20in%20desert%20peru%20pedagogical%20illustration?width=800&height=600&nologo=true', // Genuine Caral ruins
+        portadaUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Caral_ene01_2011_luca_galuzzi.jpg/1280px-Caral_ene01_2011_luca_galuzzi.jpg', // Caral pyramids
         contenido: '<i>Valle de Supe, Año 2500 a.C.</i>\n\nHoy terminamos de colocar las últimas piedras de la Pirámide Mayor. Como arquitecto principal, me siento orgulloso. No hemos usado armas ni murallas para construir nuestra gran ciudad; nuestro poder es la flauta de hueso de pelícano, el comercio de achiote y el conocimiento del clima.\n\nEsta mañana vi a los niños del valle corriendo con anchovetas secas que intercambiaron por algodón con los pueblos de la sierra. Aquí en Caral, la paz es nuestra mejor tecnología. Sabemos que los temblores fuertes vendrán (la Pachamama siempre se mueve), por eso usamos "shicras", redes llenas de piedras en las bases de nuestras pirámides para que no se caigan.\n\nEspero que en miles de años, los niños que vivan en estas tierras entiendan que una civilización grande se construye con inteligencia y comercio, no con guerras.',
         youtubeUrl: 'https://www.youtube.com/watch?v=xLdI0R3A3o0', // Caral documental
         sugerenciaLibro: 'Los Secretos de la Ciudad Sagrada',
@@ -821,7 +821,7 @@ export const mockReadings: Reading[] = [
         titulo: 'Debate Escolar: ¿Cambiar la Plaza de Armas?',
         grado: 5,
         tipoTexto: 'Artículo de Opinión',
-        portadaUrl: 'https://image.pollinations.ai/prompt/peruvian%20town%20plaza%20city%20square%20trees%20pedagogical%20illustration?width=800&height=600&nologo=true', // A generic plaza
+        portadaUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e7/Plaza_de_Armas_Puno_2.JPG/1280px-Plaza_de_Armas_Puno_2.JPG', // Plaza de Armas peruana
         contenido: '<b>COLUMNA DE OPINIÓN ESTUDIANTIL</b>\n<i>Por: María Fernanda, 5to "A"</i>\n\nHace una semana, el municipio de Pativilca propuso talar tres de los árboles más antiguos de nuestra histórica Plaza de Armas para construir un parqueo de motos. Personalmente, considero que esta es una pésima idea.\n\nEn primer lugar, la plaza es nuestro Patrimonio Cultural. Bajo esa sombra, miles de ciudadanos, e incluso personajes históricos como Bolívar, encontraron refugio del fuerte sol norteño.\n\nEn segundo lugar, quitar árboles en tiempos de calentamiento global es retroceder. ¡Necesitamos más oxígeno, no más humo de escape!\n\nEntiendo que el parqueo es necesario para los mototaxistas, pero propongo una solución: usar el terreno baldío detrás del mercado. Así, respetamos a los trabajadores de transporte, protegemos nuestra historia verde y mantenemos fresca el alma de nuestra ciudad.',
         youtubeUrl: 'https://www.youtube.com/watch?v=t9tDSy7AFOI', // Video debate o noticia local
         sugerenciaLibro: 'Jóvenes Ciudadanos',
@@ -1050,7 +1050,7 @@ export const mockReadings: Reading[] = [
         titulo: 'Secretos del Perol: Entrevista a Doña Rosa',
         grado: 6,
         tipoTexto: 'Entrevista / Reportaje',
-        portadaUrl: 'https://image.pollinations.ai/prompt/traditional%20peruvian%20woman%20cooking%20in%20a%20large%20clay%20pot%20outdoors%20pedagogical%20illustration?width=800&height=600&nologo=true', // Traditional Peruvian food / kitchen
+        portadaUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/Cajamarca_cocina.jpg/1280px-Cajamarca_cocina.jpg', // Cocina tradicional peruana
         contenido: '<b>"A LA OLLA NO SE LE APURA"</b>\n<i>Por la Revista Estudiantil Norte Chico</i>\n\nNuestra reportera Camila (6to B) visitó el mercado antiguo de Pativilca para entrevistar a doña Rosa, ganadora del premio al "Mejor Picante de Cuy y Tamal Pativilcano".\n\n<b>Camila:</b> Doña Rosa, ¡qué aromas maravillosos hay aquí! ¿Cuál es el secreto de sus famosas comidas que atraen turistas de todas partes?\n<b>Doña Rosa:</b> (Ríe mientras mueve el cucharón de palo de guayabo). Hola mija, el secreto no es un condimento mágico. El ingrediente más caro del mundo se llama "Tiempo". Hoy en día, todos cocinan en microondas o a fuego máximo. Mi madre me enseñó que los aderezos —ese chinito, el ají panca, el ají mirasol— sudan a fuego lentito, en ollita de barro. Así cantan los sabores.\n\n<b>Camila:</b> Dicen por ahí que los jóvenes ya no quieren aprender a cocinar con leña y barro...\n<b>Doña Rosa:</b> Es triste. Dejar de cocinar nuestras recetas es empezar a olvidar quiénes somos. Cada tamal amarrado lleva la historia de los incas y la herencia de los afros, todo mezclado en esta tierra hermosa. Por eso, mis puertas están abiertas las tardes de domingo para quien quiera untarse las manos de masa morada.\n\n<i>Reportó para todos: Camila Gómez.</i>',
         youtubeUrl: 'https://www.youtube.com/watch?v=Evze31m1F28', // Video gastronomia peruana local
         sugerenciaLibro: 'Raíces y Recetas',

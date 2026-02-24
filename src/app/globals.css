@@ -65,7 +65,7 @@ body {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
     background-color: transparent !important;
-    font-size: 11pt !important;
+    font-size: 10pt !important;
     font-family: 'Calibri', sans-serif !important;
   }
 
@@ -75,14 +75,14 @@ body {
   h4,
   h5,
   h6 {
-    font-size: 12pt !important;
+    font-size: 10pt !important;
     page-break-after: avoid;
     break-after: avoid;
   }
 
   p,
   div {
-    font-size: 11pt;
+    font-size: 10pt;
   }
 
   table.rubric-table {
