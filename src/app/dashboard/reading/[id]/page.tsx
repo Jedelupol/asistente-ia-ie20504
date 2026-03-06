@@ -261,6 +261,26 @@ export default function ReadingDetailPage() {
                                                         {reading.tipoTexto}
                                                     </div>
                                                 </div>
+
+                                                {(reading.creatorName || reading.createdAt) && (
+                                                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-4 text-xs sm:text-sm font-medium text-slate-500">
+                                                        {reading.creatorName && (
+                                                            <div className="flex items-center gap-1.5">
+                                                                <PenTool className="w-4 h-4 text-orange-500" />
+                                                                <span>Creado por: <strong className="text-slate-700">{reading.creatorName}</strong></span>
+                                                            </div>
+                                                        )}
+                                                        {reading.creatorName && reading.createdAt && (
+                                                            <span className="text-slate-300 hidden sm:inline">•</span>
+                                                        )}
+                                                        {reading.createdAt && (
+                                                            <div className="flex items-center gap-1.5 text-slate-500">
+                                                                <span>{new Date(reading.createdAt).toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+
                                                 <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 mb-6 leading-[1.15] tracking-tight">
                                                     {reading.titulo}
                                                 </h1>

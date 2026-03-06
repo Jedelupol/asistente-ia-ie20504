@@ -8,7 +8,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, doc, setDoc, query, where, deleteDoc } from 'firebase/firestore';
 import { useAuth } from '@/lib/AuthContext';
-import { Trash2, AlertTriangle } from 'lucide-react';
+import { Trash2, AlertTriangle, LayoutGrid, List } from 'lucide-react';
 
 function DashboardContent() {
     const router = useRouter();
@@ -16,6 +16,10 @@ function DashboardContent() {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [isDeletingBulk, setIsDeletingBulk] = useState(false);
+
+    // Admin Bulk Actions State
+    const [selectedReadings, setSelectedReadings] = useState<Set<string>>(new Set());
+    const fileUploadRef = React.useRef<HTMLInputElement>(null);
 
     // Persistent state initialization
     const [activeNivel, setActiveNivel] = useState<'primaria' | 'secundaria'>('primaria');
@@ -39,6 +43,7 @@ function DashboardContent() {
     const isSecundaria = activeNivel === 'secundaria';
 
     const [selectedGrade, setSelectedGrade] = useState<number | 'all'>('all');
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
     // Dynamic Grades Array based on Level
     const GRADES: { id: number | 'all', label: string }[] = isSecundaria ? [
@@ -107,6 +112,76 @@ function DashboardContent() {
         return true;
     });
 
+    const toggleSelection = (id: string) => {
+        setSelectedReadings(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+    const handleSelectAllInView = () => {
+        if (selectedReadings.size === filteredReadings.length && filteredReadings.length > 0) {
+            setSelectedReadings(new Set());
+        } else {
+            setSelectedReadings(new Set(filteredReadings.map(r => r.id)));
+        }
+    };
+
+    const handleDownloadSelected = () => {
+        const selectedData = allReadings.filter(r => selectedReadings.has(r.id));
+        if (selectedData.length === 0) return;
+
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(selectedData, null, 2));
+        const currentDate = new Date().toISOString().split('T')[0];
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", `lecturas_exportadas_${currentDate}.json`);
+        document.body.appendChild(downloadAnchorNode);
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
+        setSelectedReadings(new Set());
+    };
+
+    const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const content = e.target?.result as string;
+                const parsed = JSON.parse(content);
+                const readingsArray = Array.isArray(parsed) ? parsed : [parsed];
+
+                if (readingsArray.length > 0 && confirm(`Estás a punto de subir ${readingsArray.length} lecturas a la base de datos. ¿Continuar?`)) {
+                    setIsDeletingBulk(true); // Re-use loading state
+                    let uploadedCount = 0;
+                    for (const r of readingsArray) {
+                        if (r.titulo && r.actividades) {
+                            const { id, ...readingData } = r;
+                            await setDoc(doc(collection(db, 'readings')), {
+                                ...readingData,
+                                createdAt: readingData.createdAt || new Date().toISOString()
+                            });
+                            uploadedCount++;
+                        }
+                    }
+                    alert(`✅ Éxito: Se han subido ${uploadedCount} lecturas.`);
+                    window.location.reload();
+                }
+            } catch (err) {
+                console.error("Error parsing/uploading JSON:", err);
+                alert("Error técnico al leer el archivo JSON.");
+            } finally {
+                setIsDeletingBulk(false);
+                if (fileUploadRef.current) fileUploadRef.current.value = "";
+            }
+        };
+        reader.readAsText(file);
+    };
+
     if (!isInitialized) return <div className="min-h-screen flex items-center justify-center text-primary-600 font-bold">Cargando Catálogo...</div>;
 
     return (
@@ -142,152 +217,197 @@ function DashboardContent() {
                     </p>
                 </div>
 
-                {/* Grade Filters */}
-                <div className="mb-8 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
-                    <div className="flex gap-2 sm:gap-3 min-w-max">
-                        {GRADES.map((grade) => (
-                            <button
-                                key={grade.id}
-                                onClick={() => setSelectedGrade(grade.id)}
-                                className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all duration-300 ${selectedGrade === grade.id
-                                    ? 'bg-slate-900 text-white shadow-md scale-105'
-                                    : 'bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200'
-                                    }`}
-                            >
-                                {grade.label}
-                            </button>
-                        ))}
+                {/* Controls Bar: Grade Filters & View Toggle */}
+                <div className="mb-8 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                    {/* Grade Filters */}
+                    <div className="overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
+                        <div className="flex gap-2 sm:gap-3 min-w-max">
+                            {GRADES.map((grade) => (
+                                <button
+                                    key={grade.id}
+                                    onClick={() => setSelectedGrade(grade.id)}
+                                    className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all duration-300 ${selectedGrade === grade.id
+                                        ? 'bg-slate-900 text-white shadow-md scale-105'
+                                        : 'bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200'
+                                        }`}
+                                >
+                                    {grade.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* View Toggle */}
+                    <div className="flex bg-white border border-slate-200 rounded-xl p-1 shadow-sm shrink-0 self-start lg:self-auto">
+                        <button
+                            onClick={() => setViewMode('grid')}
+                            className={`p-2 rounded-lg transition-all flex items-center gap-2 text-sm font-bold ${viewMode === 'grid' ? 'bg-orange-100 text-orange-700 shadow-sm' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}
+                            title="Vista Cuadrícula"
+                        >
+                            <LayoutGrid className="w-4 h-4" /> <span className="hidden sm:inline">Muros</span>
+                        </button>
+                        <button
+                            onClick={() => setViewMode('list')}
+                            className={`p-2 rounded-lg transition-all flex items-center gap-2 text-sm font-bold ${viewMode === 'list' ? 'bg-orange-100 text-orange-700 shadow-sm' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}
+                            title="Vista Lista"
+                        >
+                            <List className="w-4 h-4" /> <span className="hidden sm:inline">Filas</span>
+                        </button>
                     </div>
                 </div>
 
-                {/* --- ADMIN BULK DELETE TOOL --- */}
+                {/* --- ADMIN BULK ACTIONS TOOL --- */}
                 {isAdmin && (
-                    <div className="mb-10 bg-red-50 border border-red-200 rounded-2xl p-6 shadow-sm">
-                        <div className="flex items-center gap-3 mb-4">
-                            <AlertTriangle className="w-6 h-6 text-red-600" />
-                            <h2 className="text-xl font-black text-red-900">Herramienta de Administrador: Borrado Masivo</h2>
+                    <div className="mb-10 bg-slate-100 border border-slate-300 rounded-2xl p-6 shadow-sm">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                            <div className="flex items-center gap-3">
+                                <AlertTriangle className="w-6 h-6 text-red-600" />
+                                <h2 className="text-xl font-black text-slate-900">Herramientas de Administrador: Acciones Masivas</h2>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-3">
+                                <span className="text-sm font-bold text-slate-700 bg-white px-3 py-1.5 rounded border border-slate-200 shadow-sm">{selectedReadings.size} sel.</span>
+
+                                <button
+                                    onClick={handleSelectAllInView}
+                                    className="text-sm font-bold text-slate-700 hover:text-black bg-white hover:bg-slate-50 border border-slate-200 shadow-sm rounded-lg px-3 py-1.5 transition-colors"
+                                >
+                                    {selectedReadings.size === filteredReadings.length && filteredReadings.length > 0 ? 'Desmarcar todo' : 'Seleccionar Vistos'}
+                                </button>
+
+                                <button
+                                    onClick={handleDownloadSelected}
+                                    disabled={selectedReadings.size === 0}
+                                    className="bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white font-bold text-sm px-4 py-2 rounded-lg transition-all shadow-md"
+                                >
+                                    Descargar JSON
+                                </button>
+
+                                <input
+                                    type="file"
+                                    accept=".json"
+                                    ref={fileUploadRef}
+                                    onChange={handleFileUpload}
+                                    className="hidden"
+                                />
+                                <button
+                                    onClick={() => fileUploadRef.current?.click()}
+                                    disabled={isDeletingBulk}
+                                    className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-bold text-sm px-4 py-2 rounded-lg transition-all shadow-md"
+                                >
+                                    Subir JSON
+                                </button>
+                            </div>
                         </div>
-                        <p className="text-sm text-red-800 mb-4 font-medium">Permite eliminar permanentemente múltiples lecturas generadas por IA dentro de un rango de fechas. Usa esta herramienta con precaución para no agotar la cuota de Firebase.</p>
 
-                        <div className="flex flex-col sm:flex-row gap-4 items-end">
-                            <div className="flex-1 w-full relative">
-                                <label className="block text-xs font-bold text-red-800 uppercase tracking-wider mb-1">Fecha de Inicio</label>
-                                <input
-                                    type="date"
-                                    value={startDate}
-                                    onChange={(e) => setStartDate(e.target.value)}
-                                    className="w-full bg-white border border-red-200 text-red-900 text-sm rounded-xl focus:ring-red-500 focus:border-red-500 block p-3 shadow-sm z-10 relative cursor-text"
-                                    onClick={(e) => {
-                                        if ('showPicker' in HTMLInputElement.prototype) {
-                                            (e.target as HTMLInputElement).showPicker();
+                        <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+                            <h3 className="text-sm font-bold text-red-900 mb-2">Borrado Permanente por Rango de Fechas</h3>
+
+                            <div className="flex flex-col sm:flex-row gap-4 items-end">
+                                <div className="flex-1 w-full relative">
+                                    <label className="block text-xs font-bold text-red-800 uppercase tracking-wider mb-1">Fecha de Inicio</label>
+                                    <input
+                                        type="date"
+                                        value={startDate}
+                                        onChange={(e) => setStartDate(e.target.value)}
+                                        className="w-full bg-white border border-red-200 text-red-900 text-sm rounded-xl focus:ring-red-500 focus:border-red-500 block p-3 shadow-sm z-10 relative cursor-text"
+                                        onClick={(e) => {
+                                            if ('showPicker' in HTMLInputElement.prototype) {
+                                                (e.target as HTMLInputElement).showPicker();
+                                            }
+                                        }}
+                                    />
+                                </div>
+                                <div className="flex-1 w-full relative">
+                                    <label className="block text-xs font-bold text-red-800 uppercase tracking-wider mb-1">Fecha Final</label>
+                                    <input
+                                        type="date"
+                                        value={endDate}
+                                        onChange={(e) => setEndDate(e.target.value)}
+                                        className="w-full bg-white border border-red-200 text-red-900 text-sm rounded-xl focus:ring-red-500 focus:border-red-500 block p-3 shadow-sm z-10 relative cursor-text"
+                                        onClick={(e) => {
+                                            if ('showPicker' in HTMLInputElement.prototype) {
+                                                (e.target as HTMLInputElement).showPicker();
+                                            }
+                                        }}
+                                    />
+                                </div>
+                                <button
+                                    onClick={async () => {
+                                        if (!startDate || !endDate) {
+                                            alert("Por favor selecciona ambas fechas.");
+                                            return;
                                         }
-                                    }}
-                                />
-                            </div>
-                            <div className="flex-1 w-full relative">
-                                <label className="block text-xs font-bold text-red-800 uppercase tracking-wider mb-1">Fecha Final</label>
-                                <input
-                                    type="date"
-                                    value={endDate}
-                                    onChange={(e) => setEndDate(e.target.value)}
-                                    className="w-full bg-white border border-red-200 text-red-900 text-sm rounded-xl focus:ring-red-500 focus:border-red-500 block p-3 shadow-sm z-10 relative cursor-text"
-                                    onClick={(e) => {
-                                        if ('showPicker' in HTMLInputElement.prototype) {
-                                            (e.target as HTMLInputElement).showPicker();
-                                        }
-                                    }}
-                                />
-                            </div>
-                            <button
-                                onClick={async () => {
-                                    if (!startDate || !endDate) {
-                                        alert("Por favor selecciona ambas fechas.");
-                                        return;
-                                    }
-                                    const start = new Date(startDate);
-                                    start.setHours(0, 0, 0, 0);
-                                    const end = new Date(endDate);
-                                    end.setHours(23, 59, 59, 999);
+                                        const start = new Date(startDate);
+                                        start.setHours(0, 0, 0, 0);
+                                        const end = new Date(endDate);
+                                        end.setHours(23, 59, 59, 999);
 
-                                    if (start > end) {
-                                        alert("La fecha de inicio no puede ser posterior a la fecha final.");
-                                        return;
-                                    }
-
-                                    if (!confirm(`⚠️ ALERTA CRÍTICA: Estás a punto de borrar PERMANENTEMENTE TODAS las lecturas creadas entre ${start.toLocaleDateString()} y ${end.toLocaleDateString()}.\n\nEsta acción NO SE PUEDE DESHACER.\n\n¿Estás absolutamente seguro?`)) return;
-
-                                    setIsDeletingBulk(true);
-                                    try {
-                                        const readingsRef = collection(db, 'readings');
-                                        const q = query(
-                                            readingsRef,
-                                            where('createdAt', '>=', start.toISOString()),
-                                            where('createdAt', '<=', end.toISOString())
-                                        );
-                                        const snapshot = await getDocs(q);
-
-                                        if (snapshot.empty) {
-                                            alert("No se encontraron documentados generados en este rango de fechas.");
-                                            setIsDeletingBulk(false);
+                                        if (start > end) {
+                                            alert("La fecha de inicio no puede ser posterior a la fecha final.");
                                             return;
                                         }
 
-                                        let deletedCount = 0;
-                                        // Execute in batches or sequentially to avoid limits if large
-                                        for (const document of snapshot.docs) {
-                                            await deleteDoc(doc(db, 'readings', document.id));
-                                            deletedCount++;
+                                        if (!confirm(`⚠️ ALERTA CRÍTICA: Estás a punto de borrar PERMANENTEMENTE TODAS las lecturas creadas entre ${start.toLocaleDateString()} y ${end.toLocaleDateString()}.\n\nEsta acción NO SE PUEDE DESHACER.\n\n¿Estás absolutamente seguro?`)) return;
+
+                                        setIsDeletingBulk(true);
+                                        try {
+                                            const readingsRef = collection(db, 'readings');
+                                            const q = query(
+                                                readingsRef,
+                                                where('createdAt', '>=', start.toISOString()),
+                                                where('createdAt', '<=', end.toISOString())
+                                            );
+                                            const snapshot = await getDocs(q);
+
+                                            if (snapshot.empty) {
+                                                alert("No se encontraron documentados generados en este rango de fechas.");
+                                                setIsDeletingBulk(false);
+                                                return;
+                                            }
+
+                                            let deletedCount = 0;
+                                            // Execute in batches or sequentially to avoid limits if large
+                                            for (const document of snapshot.docs) {
+                                                await deleteDoc(doc(db, 'readings', document.id));
+                                                deletedCount++;
+                                            }
+
+                                            alert(`✅ Éxito: Se han borrado permanentemente ${deletedCount} lecturas.`);
+
+                                            // Update UI State
+                                            const deletedIds = snapshot.docs.map(d => d.id);
+                                            setDbReadings(prev => prev.filter(r => !deletedIds.includes(r.id)));
+
+                                        } catch (err) {
+                                            console.error("Bulk delete failed:", err);
+                                            alert("Ocurrió un error general durante el borrado masivo. Comprueba la consola.");
+                                        } finally {
+                                            setIsDeletingBulk(false);
                                         }
-
-                                        alert(`✅ Éxito: Se han borrado permanentemente ${deletedCount} lecturas.`);
-
-                                        // Update UI State
-                                        const deletedIds = snapshot.docs.map(d => d.id);
-                                        setDbReadings(prev => prev.filter(r => !deletedIds.includes(r.id)));
-
-                                    } catch (err) {
-                                        console.error("Bulk delete failed:", err);
-                                        alert("Ocurrió un error general durante el borrado masivo. Comprueba la consola.");
-                                    } finally {
-                                        setIsDeletingBulk(false);
-                                    }
-                                }}
-                                disabled={isDeletingBulk}
-                                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-bold px-6 py-3 rounded-xl transition-all shadow-md"
-                            >
-                                {isDeletingBulk ? 'Borrando...' : <><Trash2 className="w-5 h-5" /> Borrar Rango</>}
-                            </button>
+                                    }}
+                                    disabled={isDeletingBulk}
+                                    className="w-full sm:w-auto flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-bold px-6 py-3 rounded-xl transition-all shadow-md"
+                                >
+                                    {isDeletingBulk ? 'Borrando...' : <><Trash2 className="w-5 h-5" /> Borrar Rango</>}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}
-                {/* ------------------------------- */}
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-                    <div className="flex gap-3 min-w-max">
-                        {GRADES.map(grade => (
-                            <button
-                                key={grade.id}
-                                onClick={() => setSelectedGrade(grade.id)}
-                                className={`px-5 py-2.5 rounded-xl font-medium transition-all duration-200 shadow-sm ${selectedGrade === grade.id
-                                    ? 'bg-primary-600 text-black translate-y-[-2px] shadow-md'
-                                    : 'bg-white text-black hover:bg-primary-50 hover:text-primary-700 border border-slate-200'
-                                    }`}
-                            >
-                                {grade.label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
 
                 {/* Grid Layout for Reading Cards */}
                 {filteredReadings.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+                    <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8" : "flex flex-col gap-4"}>
                         {filteredReadings.map((reading) => (
-                            <div key={reading.id} className="h-full">
+                            <div key={reading.id} className={viewMode === 'grid' ? "h-full" : ""}>
                                 <ReadingCard
                                     reading={reading}
                                     onEdit={handleEdit}
                                     onDelete={handleDelete}
+                                    viewMode={viewMode}
+                                    selectable={isAdmin}
+                                    isSelected={selectedReadings.has(reading.id)}
+                                    onSelectToggle={toggleSelection}
                                 />
                             </div>
                         ))}

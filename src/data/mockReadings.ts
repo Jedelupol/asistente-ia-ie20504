@@ -44,6 +44,9 @@ export interface Reading {
     actividades: CompetencyActivity[];
     esVisual?: boolean;
     imagenesSecuencia?: string[];
+    createdAt?: string;
+    creatorName?: string;
+    creatorId?: string;
 }
 
 export const mockReadings: Reading[] = [

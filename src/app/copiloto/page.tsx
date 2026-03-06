@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import Header from '@/components/Header';
 import { db } from '@/lib/firebase';
 import { collection, addDoc } from 'firebase/firestore';
 import { Bot, Sparkles, MapPin, Target, Loader2, BookOpen, PenTool, MessageCircle, AlertCircle, ArrowLeft, Printer, BookText, Youtube } from 'lucide-react';
 import ImageWithFallback from '@/components/ImageWithFallback';
 import Image from 'next/image';
+import { useAuth } from '@/lib/AuthContext';
 
 type ActivityType = 'oralidad' | 'lectura' | 'escritura' | 'cantidad' | 'regularidad' | 'forma' | 'datos';
 
@@ -32,10 +33,7 @@ interface GeneratedReading {
     grado: number;
     tipoTexto: string;
     portadaUrl: string;
-    // Matemática-only narrative hook (optional for Comunicación/STEAM)
-    misionAprendizaje?: string;
     contenido: string;
-    // Instructions block shown between reading and activities
     consigna?: string;
     youtubeUrl: string;
     sugerenciaLibro: string;
@@ -45,8 +43,10 @@ interface GeneratedReading {
 }
 
 export default function CopilotPage() {
+    const { user } = useAuth();
     const [step, setStep] = useState<1 | 2>(1);
     const [isLoading, setIsLoading] = useState(false);
+    const [showHelpModal, setShowHelpModal] = useState(false);
     const [formData, setFormData] = useState({
         nivelMaestro: 'Primaria',
         area: 'Comunicación',
@@ -57,6 +57,10 @@ export default function CopilotPage() {
         temperature: 0.7
     });
 
+    const closeModal = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        if (e.target === e.currentTarget) setShowHelpModal(false);
+    }, []);
+
     const [generatedReading, setGeneratedReading] = useState<GeneratedReading | null>(null);
     const [activeTab, setActiveTab] = useState<ActivityType>('lectura');
 
@@ -66,6 +70,32 @@ export default function CopilotPage() {
         try {
             const isSecundariaVar = formData.nivelMaestro === 'Secundaria';
             const competenciasUnidas = formData.competencia.join(', ');
+
+            // Lógica de extensión dinámica por ciclo (CNEB)
+            const gradoNum = parseInt(formData.ciclo.match(/\d/)?.[0] || '0');
+            let lengthAndToneInstruction = "";
+            let lengthPlaceholder = "";
+
+            if (!isSecundariaVar) {
+                // Primaria
+                lengthAndToneInstruction = "- EXTENSIÓN Y TONO (PRIMARIA): Escribe exactamente 2 a 3 párrafos cortos. Usa un lenguaje sencillo, lúdico o imaginativo (cuentos, fantasía, exploración, cultura pop).";
+                lengthPlaceholder = "[OBLIGATORIO: Desarrolla exactamente de 2 a 3 párrafos cortos]";
+            } else {
+                if (gradoNum === 1 || gradoNum === 2) {
+                    // Secundaria - Ciclo VI (1ro y 2do)
+                    lengthAndToneInstruction = "- EXTENSIÓN Y TONO (SECUNDARIA - CICLO VI): Escribe EXACTAMENTE 3 párrafos. Usa un lenguaje intermedio, claro y directo. Aborda problemáticas muy cercanas a su entorno local/escolar. ESTÁ ESTRICTAMENTE PROHIBIDO usar fantasía infantil.";
+                    lengthPlaceholder = "[OBLIGATORIO: Desarrolla exactamente 3 párrafos]";
+                } else if (gradoNum === 3) {
+                    // Secundaria - 3er Grado
+                    lengthAndToneInstruction = "- EXTENSIÓN Y TONO (SECUNDARIA - 3ER GRADO): Escribe EXACTAMENTE 3 a 4 párrafos. Usa un lenguaje intermedio, yendo directo al grano sin introducciones largas. Aborda problemáticas escolares o locales. ESTÁ ESTRICTAMENTE PROHIBIDO usar fantasía infantil.";
+                    lengthPlaceholder = "[OBLIGATORIO: Desarrolla exactamente de 3 a 4 párrafos directos]";
+                } else {
+                    // Secundaria - 4to y 5to Grado
+                    lengthAndToneInstruction = "- EXTENSIÓN Y TONO (SECUNDARIA - 4TO Y 5TO GRADO): Escribe EXACTAMENTE 4 a 5 párrafos. Usa un lenguaje avanzado, analítico y profundo. Aborda problemáticas de impacto nacional o global (tecnología, ecología, problemas sociales). ESTÁ ESTRICTAMENTE PROHIBIDO usar fantasía infantil o de niños.";
+                    lengthPlaceholder = "[OBLIGATORIO: Desarrolla exactamente de 4 a 5 párrafos analíticos]";
+                }
+            }
+
             let promptText = '';
 
             // ═══════════════════════════════════════
@@ -83,42 +113,51 @@ DATOS DEL DOCENTE:
 - Valor Transversal: ${formData.valor}
 
 REGLAS INQUEBRANTABLES PARA EL ÁREA MATEMÁTICA:
-1. El campo "contenido" debe ser una lectura/situación problemática que incluya datos numéricos explícitos (cantidades, medidas, fracciones, estadísticas, coordenadas, etc.) que sirvan de insumo para las actividades matemáticas.
-2. Genera UNA actividad por cada competencia seleccionada. El "type" de cada actividad DEBE ser EXACTAMENTE uno de: "cantidad", "regularidad", "forma", "datos". NUNCA uses "lectura", "escritura" u "oralidad" como type.
-3. - "cantidad" → competencia: Resuelve problemas de Cantidad
+1. PROHIBIDO ALUCINAR O IGNORAR DATOS: Si el docente proporciona datos específicos (cantidades, situaciones) en la Situación Significativa, DEBES usarlos OBLIGATORIAMENTE para formular los problemas. ESTÁ ESTRICTAMENTE PROHIBIDO inventar valores, precios, estadísticas o censos poblacionales que el docente no haya mencionado explícitamente. Limítate a expandir matemáticamente el escenario brindado.
+2. ESTRUCTURA DEL RETO (NO REVELAR RESPUESTAS AL ALUMNO): El campo "pregunta" DEBE ser una instrucción clara o pregunta dirigida al estudiante (Ej. "Reto de Cantidad: Utiliza los datos de la lectura para calcular..."). Plantéalo como un problema a resolver, NO des la respuesta junto con el reto.
+3. El campo "contenido" debe ser la lectura base que consolide fluidamente estos datos numéricos para las actividades.
+4. Genera UNA actividad por cada competencia seleccionada. El "type" de cada actividad DEBE ser EXACTAMENTE uno de: "cantidad", "regularidad", "forma", "datos". NUNCA uses "lectura", "escritura" u "oralidad" como type.
+5. - "cantidad" → competencia: Resuelve problemas de Cantidad
    - "regularidad" → competencia: Resuelve problemas de Regularidad, Equivalencia y Cambio
    - "forma" → competencia: Resuelve problemas de Forma, Movimiento y Localización
    - "datos" → competencia: Resuelve problemas de Gestión de Datos e Incertidumbre
-4. Cada actividad debe plantear un RETO matemático concreto que el estudiante resuelve usando los datos del texto.
-5. La rúbrica debe evaluar la RESOLUCIÓN MATEMÁTICA, NO la comprensión lectora.
-6. PROHIBICIÓN TOTAL: En ningún campo uses las palabras Lectura, Escritura u Oralidad como categorías de actividad.
-7. Motor Lúdico: Si es Primaria, contextualiza los problemas matemáticos en aventuras, superhéroes o escenarios fantásticos usando los datos del texto.
-8. RESTRICCIÓN IDIOMA: Todo 100% en español.
-9. portadaUrl: "https://image.pollinations.ai/prompt/[keywords+en+ingles+relacionados+a+matematica+y+el+contexto]?width=600&height=400&nologo=true"
-10. youtubeUrl: "https://www.youtube.com/results?search_query=[palabras+clave+matematica+en+español]"
+6. NOMBRES DE ACTIVIDADES: Los encabezados o títulos de las preguntas de cada actividad DEBEN llamarse ÚNICAMENTE: "Reto 1", "Reto 2" o "Reto de [Tema]". ESTÁ ESTRICTAMENTE PROHIBIDO usar las palabras "Misión" o "Actividad de Misión".
+7. La rúbrica debe evaluar la RESOLUCIÓN MATEMÁTICA, NO la comprensión lectora.
+8. SINERGIA DE DATOS OBLIGATORIA: Si se seleccionan múltiples competencias matemáticas, TODAS deben basarse en los mismos datos y contexto de la lectura principal.
+   - Si es "cantidad": Cálculos aritméticos o proporciones con los datos de la lectura.
+   - Si es "regularidad": Ecuaciones, funciones o patrones con el mismo contexto de la lectura.
+   - Si es "forma": Contexto espacial (áreas, planos, distancias) mencionado en la lectura.
+   - Si es "datos": Estadísticas, probabilidades o gráficos estrictamente de la lectura narrada.
+9. TONO Y EXTENSIÓN ESTRICTA POR NIVEL:
+${lengthAndToneInstruction}
+   - OBLIGATORIO: Está prohibido pedirle al estudiante "leer un texto adicional proporcionado por el docente". Todo debe estar incluido en la lectura autogenerada.
+10. FORMATO HTML: El LLM SOLO DEBE devolver el JSON. Dentro de los campos de texto, usa texto plano, SIN ETIQUETAS HTML y SIN cabeceras Markdown (# o ## o ###).
+11. RESTRICCIÓN IDIOMA: Todo 100% en español.
+12. CONSIGNA GENERAL: La consigna debe tener MÁXIMO 3 líneas e invitar al estudiante a resolver los retos.
+13. portadaUrl: "https://image.pollinations.ai/prompt/[keywords+en+ingles]?width=600&height=400&nologo=true"
+14. youtubeUrl: "https://www.youtube.com/results?search_query=[palabras+clave+matematica+en+español]"
 
-Estructura JSON OBLIGATORIA para Matemática (devuelve SOLO el JSON, sin bloques de código):
+Estructura JSON OBLIGATORIA (devuelve SOLO el JSON):
 {
   "id": "copilot-gen-dyn",
   "titulo": "[Título atractivo que mencione el contexto matemático]",
   "grado": ${parseInt(formData.ciclo.match(/\d/)?.[0] || '3')},
   "tipoTexto": "Situación Problemática Matemática",
   "portadaUrl": "https://image.pollinations.ai/prompt/...",
-  "misionAprendizaje": "[Párrafo motivador (estilo aventura o superhéroe) que plantea el desafío donde la Matemática es la solución. Ej: ¡La ciudad de Neo-Andina se queda sin energía! Tu misión: calcular los flujos de las redes eléctricas para evitar el gran apagón. ¡La Matemática es tu único superpoder!]",
-  "contenido": "[Narrativa/situación problemática con datos numéricos explícitos que alimentan TODAS las competencias seleccionadas. SIN tags HTML visibles.]",
-  "consigna": "Lee con atención el texto e identifica los datos numéricos.\n1. Identifica y anota todos los datos, cantidades y medidas del texto.\n2. Modela la situación matemáticamente: dibuja, escribe expresiones o haz una tabla.\n3. Resuelve usando la estrategia de cada competencia (operar, graficar, medir o analizar datos).\n4. Verifica tu respuesta y redacta una conclusión.",
+  "contenido": "[Texto narrativo/problemático. ${lengthPlaceholder}. NO USES NINGÚN TIPO DE CABECERA MARKDOWN COMO # O ##]",
+  "consigna": "[Consigna general introductoria rápida, máximo 3 líneas]",
   "youtubeUrl": "https://www.youtube.com/results?search_query=...",
-  "sugerenciaLibro": "[Título de libro relacionado]",
-  "searchKeywords": "[2-3 keywords en inglés para imagen]",
+  "sugerenciaLibro": "[Título de libro]",
+  "searchKeywords": "[2-3 keywords en inglés]",
   "actividades": [
     {
       "id": "act-mat-1",
       "type": "cantidad",
-      "pregunta": "[Reto matemático usando datos explícitos del texto]",
-      "respuestaEsperada": "[Solución matemática con procedimiento paso a paso]",
-      "capacidad": "Traduce cantidades a expresiones numéricas y opera con ellas.",
-      "estandar": "[Estándar CNEB alineado a Cantidad para el grado]",
-      "estrategiasAplicacion": "[Estrategia lúdica matemática]",
+      "pregunta": "[Reto 1, Reto 2, o Reto de [Tema]. JAMÁS uses la palabra Misión.]",
+      "respuestaEsperada": "[Solución matemática paso a paso]",
+      "capacidad": "string",
+      "estandar": "string",
+      "estrategiasAplicacion": "string",
       "rubricaEvaluacion": { "destacado": "string", "logrado": "string", "proceso": "string", "inicio": "string" }
     }
   ]
@@ -129,6 +168,11 @@ Genera exactamente las actividades correspondientes a las competencias seleccion
                 // ÁREA: COMUNICACIÓN
                 // ═══════════════════════════════════════
             } else if (formData.area === 'Comunicación') {
+
+                const synergyInstruction = formData.competencia.length === 3
+                    ? "- SINERGIA DE COMPETENCIAS LÓGICA: (1) Reto de Lectura: El estudiante lee el texto principal para extraer datos lúdica o analíticamente. (2) Reto de Escritura: El estudiante redacta un ensayo, informe o propuesta basándose ESTRICTAMENTE en la información de la lectura. (3) Reto de Oralidad: El estudiante prepara una exposición o debate para defender lo escrito en el reto anterior."
+                    : "- GENERACIÓN DE ACTIVIDADES: Genera EXACTAMENTE una actividad por cada competencia seleccionada.";
+
                 promptText = `Eres un asistente pedagógico de élite experto en el CNEB de Perú.
 Genera contenido educativo con rigor curricular y creatividad excepcional. No uses formato markdown.
 
@@ -141,31 +185,33 @@ DATOS DEL DOCENTE PARA EL DIAGNÓSTICO:
 - Desafío, Valor o Tema a priorizar: ${formData.valor}
 
 INSTRUCCIONES DE CONTENIDO (ESTÁNDAR DE EXCELENCIA PEDAGÓGICA):
-- DIVERSIDAD TEMÁTICA: Evita repetir temas. Rota entre IA, Biotecnología, Exploración Espacial, Energías Renovables, Realidad Virtual, Impresión 3D y Ciberseguridad.
-- MOTOR LÚDICO (Primaria): Si el nivel es Primaria, integra referencias a la cultura pop (All Might, superhéroes, dibujos animados) y contextos de alta fantasía.
-- ESCENARIOS VARIADOS: No te limites siempre a Pativilca. Contextualiza en el espacio exterior, el mundo microscópico, o ciudades futuristas.
-- EL ESTUDIANTE COMO PROTAGONISTA: El texto debe dirigirse al estudiante como investigador, héroe, ingeniero o explorador.
-- RESTRICCIÓN DE IDIOMA ESTRICTA: Todo el contenido, incluyendo sugerencias de libros y youtubeUrl, en 100% ESPAÑOL.
-- REGLA DE ORO: JAMÁS omitas portadaUrl, youtubeUrl, ni las 3 actividades (type: lectura, escritura, oralidad) ni las rúbricas.
+- EL TEXTO PRINCIPAL ES LA LECTURA: No describas textos "meta-comunicativos" (como "El día de hoy aprenderemos la importancia de leer"). Genera la lectura misma en base al tema propuesto.
+- NO MATERIAL ADICIONAL: Prohibido decirle al estudiante "Lee el texto que tu docente te dio". Toda la información debe ser autogenerada aquí mismo.
+- NOMBRES EN COMPETENCIAS: Los encabezados de las preguntas DEBEN llamarse ÚNICAMENTE "Reto de Lectura", "Reto de Escritura" o "Reto de Oralidad". ESTÁ ESTRICTAMENTE PROHIBIDO usar la palabra "Misión".
+${lengthAndToneInstruction}
+${synergyInstruction}
+- EL ESTUDIANTE COMO PROTAGONISTA: El texto se dirige al estudiante (ej. vocero, investigador, héroe).
+- FORMATO HTML ESTRICTO: El texto en 'contenido', 'pregunta' y otros NO debe traer etiquetas HTML como <h1>, <h2> o ### de Markdown. Usa solo texto plano.
+- CONSIGNA GENERAL: En 'consigna' formula un párrafo corto (máximo 3 líneas) orientando al reto final.
 - portadaUrl: "https://image.pollinations.ai/prompt/[terminos+en+ingles]?width=600&height=400&nologo=true"
 - youtubeUrl: "https://www.youtube.com/results?search_query=[palabras+clave+EN+ESPAÑOL]"
-- searchKeywords: 2-3 palabras en inglés. Si es ficción usa keywords artísticas (ej: "heroic energy neon").
+- searchKeywords: 2-3 palabras clave (en inglés) visualmente atractivas.
 
-JSON base (devuelve SOLO el JSON):
+JSON base (devuelve SOLO el JSON validado):
 {
   "id": "copilot-gen-dyn",
   "titulo": "string",
   "grado": ${parseInt(formData.ciclo.match(/\d/)?.[0] || '5')},
   "tipoTexto": "string",
   "portadaUrl": "https://image.pollinations.ai/prompt/...",
-  "contenido": "[[Narrativa vibrante. Sin tags HTML visibles.]]",
+  "contenido": "[Desarrollo narrativo base. ${lengthPlaceholder}. SOLO TEXTO PLANO sin Markdowns.]",
+  "consigna": "[Instrucciones generales introductorias cortas, máximo 3 líneas.]",
   "youtubeUrl": "https://www.youtube.com/results?search_query=...",
   "sugerenciaLibro": "string",
   "searchKeywords": "string",
   "actividades": [
-    { "id": "act-1", "type": "lectura", "pregunta": "[Consigna CNEB]", "respuestaEsperada": "string", "capacidad": "string", "estandar": "string", "estrategiasAplicacion": "string", "rubricaEvaluacion": { "destacado": "string", "logrado": "string", "proceso": "string", "inicio": "string" } },
-    { "id": "act-2", "type": "escritura", "pregunta": "string", "respuestaEsperada": "string", "capacidad": "string", "estandar": "string", "estrategiasAplicacion": "string", "rubricaEvaluacion": { "destacado": "string", "logrado": "string", "proceso": "string", "inicio": "string" } },
-    { "id": "act-3", "type": "oralidad", "pregunta": "string", "respuestaEsperada": "string", "capacidad": "string", "estandar": "string", "estrategiasAplicacion": "string", "rubricaEvaluacion": { "destacado": "string", "logrado": "string", "proceso": "string", "inicio": "string" } }
+    // Genera SOLAMENTE un objeto por cada competencia solicitada en '${competenciasUnidas}'.
+    { "id": "act-1", "type": "lectura", "pregunta": "[Reto de Lectura, Reto de Escritura, etc. Nunca uses la palabra Misión.]", "respuestaEsperada": "string", "capacidad": "string", "estandar": "string", "estrategiasAplicacion": "string", "rubricaEvaluacion": { "destacado": "string", "logrado": "string", "proceso": "string", "inicio": "string" } }
   ]
 }`;
 
@@ -176,6 +222,7 @@ JSON base (devuelve SOLO el JSON):
                 const steamInfo = isSecundariaVar
                     ? " Integra fuertemente conceptos avanzados de Electrónica, Arduino o Ciencia de Datos (STEAM)."
                     : " Usa un enfoque maker, robots simples y exploración.";
+
                 promptText = `Eres un asistente pedagógico de élite experto en el CNEB de Perú.
 Genera contenido educativo con rigor curricular y creatividad excepcional.${steamInfo}
 
@@ -189,26 +236,31 @@ DATOS DEL DOCENTE:
 
 INSTRUCCIONES:
 - DIVERSIDAD TEMÁTICA: Rota entre IA, Biotecnología, Exploración Espacial, Energías Renovables, Robótica, Impresión 3D.
-- RESTRICCIÓN DE IDIOMA: Todo 100% en español. Sin videos en inglés.
-- REGLA DE ORO: NUNCA omitas portadaUrl, youtubeUrl ni las 3 actividades con rúbricas.
+- NO DEPENDENCIAS EXTERNAS: Prohibido indicar al estudiante "lee algo proveído por el maestro". Todo el contexto va en la lectura autogenerada.
+- NOMBRES DE ACTIVIDADES: Los encabezados de las preguntas DEBEN llamarse ÚNICAMENTE "Reto 1", "Reto 2" o "Reto de [Tema]". ESTÁ ESTRICTAMENTE PROHIBIDO usar la palabra "Misión".
+${lengthAndToneInstruction}
+- SINERGIA DE COMPETENCIAS: Las actividades de cada competencia deben basarse estrictamente en el mismo contexto e información de la lectura. No inventes historias distintas por actividad.
+- FORMATO TEXTO ESTRICTO: Prohibido incluir Markdown como ###, ## o <h1>. Todo debe ser texto plano.
+- CONSIGNA GENERAL: Debe ser de un máximo de 3 líneas.
+- REGLA DE ORO: NUNCA omitas portadaUrl, youtubeUrl ni las actividades generadas (1 por cada competencia solicitada) con rúbricas.
 - portadaUrl: "https://image.pollinations.ai/prompt/[keywords+ingles]?width=600&height=400&nologo=true"
 - youtubeUrl: "https://www.youtube.com/results?search_query=[español]"
 
-JSON (devuelve SOLO el JSON):
+JSON (devuelve SOLO el JSON validado):
 {
   "id": "copilot-gen-dyn",
   "titulo": "string",
   "grado": ${parseInt(formData.ciclo.match(/\d/)?.[0] || '5')},
-  "tipoTexto": "string",
+  "tipoTexto": "Proyecto STEAM",
   "portadaUrl": "https://image.pollinations.ai/prompt/...",
-  "contenido": "string",
+  "contenido": "[Descripción del proyecto. ${lengthPlaceholder}. Texto plano sin cabeceras.]",
+  "consigna": "[Instrucciones generales, máximo de 3 líneas.]",
   "youtubeUrl": "https://www.youtube.com/results?search_query=...",
   "sugerenciaLibro": "string",
   "searchKeywords": "string",
   "actividades": [
-    { "id": "act-1", "type": "lectura", "pregunta": "string", "respuestaEsperada": "string", "capacidad": "string", "estandar": "string", "estrategiasAplicacion": "string", "rubricaEvaluacion": { "destacado": "string", "logrado": "string", "proceso": "string", "inicio": "string" } },
-    { "id": "act-2", "type": "escritura", "pregunta": "string", "respuestaEsperada": "string", "capacidad": "string", "estandar": "string", "estrategiasAplicacion": "string", "rubricaEvaluacion": { "destacado": "string", "logrado": "string", "proceso": "string", "inicio": "string" } },
-    { "id": "act-3", "type": "oralidad", "pregunta": "string", "respuestaEsperada": "string", "capacidad": "string", "estandar": "string", "estrategiasAplicacion": "string", "rubricaEvaluacion": { "destacado": "string", "logrado": "string", "proceso": "string", "inicio": "string" } }
+    // Genera EXACTAMENTE un objeto por cada competencia solicitada en '${competenciasUnidas}'. Reemplaza "type" con un valor corto relacionado.
+    { "id": "act-1", "type": "indagacion", "pregunta": "[Reto 1, Reto 2, etc. Nunca uses la palabra Misión.]", "respuestaEsperada": "string", "capacidad": "string", "estandar": "string", "estrategiasAplicacion": "string", "rubricaEvaluacion": { "destacado": "string", "logrado": "string", "proceso": "string", "inicio": "string" } }
   ]
 }`;
             }
@@ -236,7 +288,9 @@ JSON (devuelve SOLO el JSON):
                     ...restData,
                     nivel: isSecundaria ? 'secundaria' : 'primaria',
                     area: formData.area || 'Comunicación',
-                    createdAt: new Date().toISOString()
+                    createdAt: new Date().toISOString(),
+                    creatorId: user?.uid || null,
+                    creatorName: user?.displayName || user?.email?.split('@')[0] || 'Docente Copiloto'
                 };
 
                 const docRef = await addDoc(collection(db, 'readings'), readingToSave);
@@ -272,8 +326,102 @@ JSON (devuelve SOLO el JSON):
                     </div>
                     <h1 className="text-4xl font-black text-black tracking-tight mb-2 flex items-center justify-center gap-3">
                         ¡Bienvenido, Estimado Docente! <Sparkles className="w-8 h-8 text-orange-500" />
+                        <button
+                            type="button"
+                            onClick={() => setShowHelpModal(true)}
+                            title="¿Qué es Situación Significativa, Contexto y Consigna?"
+                            className="ml-1 w-9 h-9 rounded-full bg-orange-100 hover:bg-orange-200 border border-orange-300 text-orange-700 font-black text-base flex items-center justify-center transition-all shadow-sm hover:shadow-md"
+                        >
+                            ❓
+                        </button>
                     </h1>
                     <p className="text-black font-medium text-xl opacity-80">El Copiloto está listo para diseñar su próxima lectura.</p>
+
+                    {/* ══ MODAL DE AYUDA PEDAGÓGICA ══ */}
+                    {showHelpModal && (
+                        <div
+                            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+                            onClick={closeModal}
+                        >
+                            <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-8 text-left relative">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowHelpModal(false)}
+                                    className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 font-black flex items-center justify-center transition-colors"
+                                >
+                                    ✕
+                                </button>
+
+                                <h3 className="text-xl font-black text-black mb-3">❓ ¿Es lo mismo Situación Significativa, Situación de Contexto o Consigna?</h3>
+                                <p className="text-slate-700 font-medium mb-5"><strong>No.</strong> Para que la IA genere el mejor material, es vital entender la diferencia:</p>
+
+                                <div className="space-y-5">
+                                    <div>
+                                        <h4 className="text-base font-black text-black mb-1">1️⃣ Situación Significativa</h4>
+                                        <p className="text-slate-700 text-sm leading-relaxed mb-2">Es una situación de la vida real o cercana al estudiante que sirve para iniciar el aprendizaje. Busca despertar interés y generar un problema o reto que motive a aprender.</p>
+                                        <ul className="list-disc pl-5 text-sm text-slate-600"><li><em>📝 Ejemplo:</em> En la comunidad hay acumulación de basura y malos olores cerca del colegio. → A partir de esto los estudiantes investigan, opinan y proponen soluciones.</li></ul>
+                                    </div>
+
+                                    <div>
+                                        <h4 className="text-base font-black text-black mb-1">2️⃣ Situación de Contexto</h4>
+                                        <p className="text-slate-700 text-sm leading-relaxed mb-2">Es la descripción del <strong>entorno o realidad</strong> donde ocurre el aprendizaje: comunidad, cultura, problemas locales, costumbres, etc. <em>(Esto es lo que debes escribir en el Copiloto).</em></p>
+                                        <ul className="list-disc pl-5 text-sm text-slate-600"><li><em>📝 Ejemplo:</em> El colegio está en una zona donde muchas familias trabajan en agricultura y hay problemas de manejo de residuos.</li></ul>
+                                    </div>
+
+                                    <div>
+                                        <h4 className="text-base font-black text-black mb-1">3️⃣ Consigna</h4>
+                                        <p className="text-slate-700 text-sm leading-relaxed mb-2">Es la <strong>instrucción específica</strong> o tarea que se da al estudiante para realizar una actividad.</p>
+                                        <ul className="list-disc pl-5 text-sm text-slate-600"><li><em>📝 Ejemplo:</em> &quot;Escribe una propuesta para reducir la basura en tu comunidad.&quot;</li></ul>
+                                    </div>
+                                </div>
+
+                                <div className="overflow-x-auto rounded-xl border border-slate-200 mt-5 mb-5">
+                                    <table className="w-full text-sm text-left">
+                                        <thead className="bg-slate-50">
+                                            <tr>
+                                                <th className="px-4 py-3 font-black text-black border-b border-slate-200">Término</th>
+                                                <th className="px-4 py-3 font-black text-black border-b border-slate-200">¿Qué es?</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 bg-white">
+                                            <tr>
+                                                <td className="px-4 py-3 font-bold text-black">Situación significativa</td>
+                                                <td className="px-4 py-3 text-slate-700">Problema o reto real que motiva el aprendizaje.</td>
+                                            </tr>
+                                            <tr>
+                                                <td className="px-4 py-3 font-bold text-black">Situación de contexto</td>
+                                                <td className="px-4 py-3 text-slate-700">Descripción del entorno o realidad del estudiante.</td>
+                                            </tr>
+                                            <tr>
+                                                <td className="px-4 py-3 font-bold text-black">Consigna</td>
+                                                <td className="px-4 py-3 text-slate-700">Instrucción o tarea exacta que debe realizar el estudiante.</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <p className="text-sm text-slate-700 mb-5">📌 <strong>Relación:</strong> Primero se presenta la situación significativa dentro de un contexto, y luego se dan las consignas para las actividades.</p>
+
+                                <hr className="border-slate-200 mb-5" />
+
+                                <h3 className="text-lg font-black text-black mb-3">🏛️ Estructura MINEDU para redactar una Situación Significativa</h3>
+                                <p className="text-sm text-slate-700 mb-2">✅ <strong>La fórmula rápida:</strong> Contexto + Problema + Pregunta reto + Producto</p>
+                                <div className="bg-orange-50 border-l-4 border-orange-400 rounded-xl p-4 text-sm text-slate-800 leading-relaxed">
+                                    <p className="font-black text-orange-800 mb-1">📌 Ejemplo completo corto:</p>
+                                    <p className="italic">&quot;En la institución educativa se ha observado que muchos estudiantes presentan dificultades para expresarse con claridad durante las exposiciones y lecturas en voz alta. Esta situación limita su participación y seguridad al comunicarse. Frente a ello surge la pregunta: ¿cómo podemos mejorar nuestra dicción y expresión oral para comunicar nuestras ideas con claridad? Para responder a este desafío, los estudiantes elaborarán podcasts y locuciones utilizando herramientas digitales, aplicando técnicas de vocalización y entonación.&quot;</p>
+                                </div>
+
+                                <div className="mt-6 text-center">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowHelpModal(false)}
+                                        className="bg-orange-600 hover:bg-orange-700 text-white font-black px-8 py-3 rounded-xl transition-colors shadow-md"
+                                    >
+                                        ✅ ¡Entendido!
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -425,27 +573,33 @@ JSON (devuelve SOLO el JSON):
                     </label>
                     <textarea
                         required
-                        placeholder="Ej: Tradiciones de Pativilca, Aniversario I.E. 20504, Robótica en el aula, Problemas de reciclaje..."
+                        placeholder="Ej: Se acerca el aniversario de nuestro colegio en Pativilca y los estudiantes de 4to año quieren organizar un campeonato deportivo, pero tenemos un presupuesto muy limitado para los premios..."
                         className="w-full bg-white border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-orange-500 focus:border-orange-500 block p-4 shadow-sm"
                         rows={3}
                         value={formData.contexto}
                         onChange={(e) => setFormData({ ...formData, contexto: e.target.value })}
                     />
+                    <p className="text-xs text-slate-500 bg-orange-50 border border-orange-100 rounded-lg px-3 py-2 leading-relaxed">
+                        💡 <strong>Tip del Copiloto:</strong> Describe solo el problema o la realidad de los estudiantes. No te preocupes por el reto; la IA se encargará de redactar la Misión y la Consigna automáticamente.
+                    </p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
                     <div className="space-y-2">
                         <label className="text-sm font-bold text-black flex items-center gap-2">
-                            <Target className="w-4 h-4 text-orange-500" /> Valor Transversal
+                            <Target className="w-4 h-4 text-orange-500" /> Enfoques Transversales
                         </label>
                         <input
                             required
                             type="text"
-                            placeholder="Ej. Identidad local, Innovación, Respeto..."
+                            placeholder="Ej: Enfoque Ambiental, Orientación al bien común, Búsqueda de la excelencia..."
                             className="w-full bg-white border border-slate-200 text-slate-900 text-sm rounded-xl focus:ring-orange-500 focus:border-orange-500 block p-3.5"
                             value={formData.valor}
                             onChange={(e) => setFormData({ ...formData, valor: e.target.value })}
                         />
+                        <p className="text-xs text-slate-500 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 leading-relaxed">
+                            🎯 <strong>Tip:</strong> Indica el enfoque del CNEB que guiará la actitud y los valores de los estudiantes durante la resolución del problema.
+                        </p>
                     </div>
 
                     <div className="space-y-2">
@@ -590,14 +744,14 @@ JSON (devuelve SOLO el JSON):
                                             </div>
 
                                             <div className="mt-6 px-3 pb-3 space-y-4">
-                                                <h3 className="text-xl font-bold tracking-tight text-black leading-tight">
+                                                <h2 className="text-[20px] font-bold tracking-tight text-black leading-tight">
                                                     {generatedReading.titulo}
-                                                </h3>
+                                                </h2>
                                                 <div className="flex gap-2">
-                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-100 tracking-wide uppercase">
+                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[14px] font-bold bg-purple-50 text-purple-700 border border-purple-100 tracking-wide uppercase">
                                                         Grado {generatedReading.grado}
                                                     </span>
-                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-100 uppercase tracking-wide">
+                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[14px] font-bold bg-blue-50 text-blue-700 border border-blue-100 uppercase tracking-wide">
                                                         {generatedReading.tipoTexto}
                                                     </span>
                                                 </div>
@@ -608,29 +762,11 @@ JSON (devuelve SOLO el JSON):
                                     {/* Right Column: Content & CNEB */}
                                     <div className="lg:col-span-8 flex flex-col gap-10 print:block">
 
-                                        {/* ══ MISIÓN DE APRENDIZAJE (Matemática only) ══ */}
-                                        {isMath && generatedReading.misionAprendizaje && (
-                                            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-700 via-blue-600 to-indigo-700 p-7 shadow-xl shadow-blue-900/20 print:rounded-none print:shadow-none print:bg-white print:border-2 print:border-blue-700 print:p-5 print:break-inside-avoid">
-                                                {/* decorative circles */}
-                                                <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-white/5 print:hidden" />
-                                                <div className="absolute -bottom-6 -left-6 w-28 h-28 rounded-full bg-white/5 print:hidden" />
-                                                <div className="flex items-center gap-3 mb-3">
-                                                    <span className="text-3xl" role="img" aria-label="misión">🚀</span>
-                                                    <h2 className="text-lg font-black text-white uppercase tracking-[0.12em] print:text-blue-900">
-                                                        Misión de Aprendizaje
-                                                    </h2>
-                                                </div>
-                                                <p className="text-white/95 font-semibold text-base leading-relaxed print:text-black">
-                                                    {generatedReading.misionAprendizaje}
-                                                </p>
-                                            </div>
-                                        )}
-
                                         {/* Reading Content */}
                                         <div className="bg-white rounded-3xl border border-slate-200/60 p-6 sm:p-10 shadow-lg shadow-slate-900/5 print:border-none print:shadow-none print:p-0 print:break-inside-avoid">
-                                            <h2 className="text-2xl font-black text-black mb-8 pb-4 border-b border-slate-100 flex items-center gap-3">
+                                            <h4 className="text-[16px] font-bold text-black mb-8 pb-4 border-b border-slate-100 flex items-center gap-3">
                                                 {isMath ? 'Situación Problemática' : 'Texto de Lectura'}
-                                            </h2>
+                                            </h4>
                                             {generatedReading.imagenesReferencia && generatedReading.imagenesReferencia.length > 0 && (
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 print:block text-center auto-cols-max">
                                                     {generatedReading.imagenesReferencia.map((imgUrl, idx) => (
@@ -641,23 +777,23 @@ JSON (devuelve SOLO el JSON):
                                                     ))}
                                                 </div>
                                             )}
-                                            <div className="text-black text-base leading-relaxed font-medium space-y-4">
+                                            <div className="text-black text-[16px] font-normal font-sans leading-relaxed space-y-4 [&>p]:text-[16px] [&>div]:text-[16px]">
                                                 <div dangerouslySetInnerHTML={{ __html: generatedReading.contenido.replace(/\n/g, '<br/>') }} />
                                             </div>
                                         </div>
 
-                                        {/* ══ CONSIGNA DE TRABAJO (Matemática only) ══ */}
-                                        {isMath && generatedReading.consigna && (
+                                        {/* ══ CONSIGNA DE TRABAJO ══ */}
+                                        {generatedReading.consigna && (
                                             <div className="bg-amber-50 border-l-4 border-amber-500 rounded-2xl p-6 shadow-sm print:rounded-none print:shadow-none print:break-inside-avoid print:border-l-4 print:border-amber-600">
                                                 <div className="flex items-center gap-2 mb-4">
                                                     <span className="text-2xl">📋</span>
-                                                    <h3 className="text-lg font-black text-amber-900 uppercase tracking-wider">
+                                                    <h4 className="text-[16px] font-bold text-amber-900 uppercase tracking-wider">
                                                         Consigna de Trabajo
-                                                    </h3>
+                                                    </h4>
                                                 </div>
                                                 <div className="space-y-2">
                                                     {generatedReading.consigna.split('\n').map((line, i) => (
-                                                        <p key={i} className={`text-amber-950 leading-relaxed ${line.match(/^\d+\./) ? 'font-bold pl-2' : 'font-semibold text-sm'
+                                                        <p key={i} className={`text-amber-950 text-[16px] font-sans leading-relaxed ${line.match(/^\d+\./) ? 'font-bold pl-2' : 'font-normal'
                                                             }`}>
                                                             {line}
                                                         </p>
@@ -669,10 +805,10 @@ JSON (devuelve SOLO el JSON):
                                         {/* Evaluation Area */}
                                         <div className="bg-white rounded-3xl border border-slate-200/60 p-6 sm:p-10 shadow-lg shadow-slate-900/5 print:border-none print:shadow-none print:p-0 print:mt-10">
                                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 border-b border-slate-100 pb-6 print:pb-2">
-                                                <h2 className="text-2xl lg:text-3xl font-extrabold text-black flex items-center gap-3">
+                                                <h2 className="text-[20px] font-bold text-black flex items-center gap-3">
                                                     {isMath ? 'Resolución de Problemas' : 'Evaluación'} <span className="text-orange-600">CNEB</span>
                                                 </h2>
-                                                <span className="text-xs font-bold text-orange-700 bg-orange-50 px-4 py-2 rounded-lg border border-orange-200 uppercase tracking-wide flex items-center gap-2 print:hidden">
+                                                <span className="text-[14px] font-bold text-orange-700 bg-orange-50 px-4 py-2 rounded-lg border border-orange-200 uppercase tracking-wide flex items-center gap-2 print:hidden">
                                                     <Bot className="w-4 h-4" /> Validado por IA
                                                 </span>
                                             </div>
@@ -723,10 +859,10 @@ JSON (devuelve SOLO el JSON):
                                                 {activeTab === 'lectura' && generatedReading.actividades.find(a => a.type === 'escritura') && (
                                                     <div className="bg-amber-50 p-6 rounded-2xl border border-amber-200 shadow-sm relative overflow-hidden print:hidden">
                                                         <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-amber-400 to-amber-600 opacity-60"></div>
-                                                        <h4 className="text-amber-800 font-extrabold flex items-center gap-2 mb-3 uppercase tracking-wide text-sm">
-                                                            <span className="text-2xl">🎯</span> TU MISIÓN:
+                                                        <h4 className="text-[16px] text-amber-800 font-bold flex items-center gap-2 mb-3 uppercase tracking-wide">
+                                                            <span className="text-[18px]">🎯</span> TU RETO:
                                                         </h4>
-                                                        <p className="text-amber-950 font-medium leading-relaxed sm:pl-[36px]" dangerouslySetInnerHTML={{ __html: formatBoldText(generatedReading.actividades.find(a => a.type === 'escritura')?.pregunta) }}>
+                                                        <p className="text-[16px] font-sans text-amber-950 font-normal leading-relaxed sm:pl-[36px]" dangerouslySetInnerHTML={{ __html: formatBoldText(generatedReading.actividades.find(a => a.type === 'escritura')?.pregunta) }}>
                                                         </p>
                                                     </div>
                                                 )}
@@ -736,12 +872,12 @@ JSON (devuelve SOLO el JSON):
                                                     <div key={activity.id} className={`bg-white rounded-2xl border border-slate-200 p-6 lg:p-8 flex-col gap-6 relative overflow-hidden group hover:border-orange-300 transition-colors shadow-sm hover:shadow-md print:break-inside-avoid print:shadow-none print:border-slate-300 print:mt-8 print:!flex ${activity.type === activeTab ? 'flex' : 'hidden'}`}>
 
                                                         {/* Activity Type Badge — shows full CNEB competency name for Math */}
-                                                        <div className="absolute top-0 right-0 bg-slate-100 px-4 py-1.5 text-[10px] sm:text-xs font-black uppercase tracking-widest text-slate-500 rounded-bl-2xl border-b border-l border-slate-200 print:bg-slate-50 print:border-slate-300 print:text-black">
+                                                        <h3 className="absolute top-0 right-0 bg-slate-100 px-4 py-1.5 text-[18px] font-bold uppercase tracking-widest text-slate-500 rounded-bl-2xl border-b border-l border-slate-200 print:bg-slate-50 print:border-slate-300 print:text-black">
                                                             {isMath
                                                                 ? (MATH_FULL_NAMES[activity.type] || activity.type)
                                                                 : `Competencia: ${activity.type}`
                                                             }
-                                                        </div>
+                                                        </h3>
 
                                                         <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-orange-400 to-orange-600 opacity-60 print:hidden"></div>
 
@@ -753,50 +889,50 @@ JSON (devuelve SOLO el JSON):
                                                                 {activity.type === 'escritura' ? (
                                                                     <div className="bg-gradient-to-r from-amber-100 to-orange-50 p-4 rounded-xl border border-amber-200 shadow-sm mb-4">
                                                                         <div className="flex items-center gap-2 mb-2">
-                                                                            <span className="text-xl">🎯</span>
-                                                                            <h4 className="font-extrabold text-amber-900 uppercase text-xs tracking-wider">Actividad de Misión</h4>
+                                                                            <span className="text-[18px]">🎯</span>
+                                                                            <h4 className="font-bold text-amber-900 uppercase text-[16px] tracking-wider">Reto de Escritura</h4>
                                                                         </div>
-                                                                        <p className="text-amber-950 font-bold leading-relaxed" dangerouslySetInnerHTML={{ __html: formatBoldText(activity.pregunta!) }}></p>
+                                                                        <p className="text-[16px] font-sans text-amber-950 font-normal leading-relaxed" dangerouslySetInnerHTML={{ __html: formatBoldText(activity.pregunta!) }}></p>
                                                                     </div>
                                                                 ) : (
-                                                                    <h4 className="text-lg font-bold text-black mb-3 leading-snug" dangerouslySetInnerHTML={{ __html: formatBoldText(activity.pregunta!) }}>
+                                                                    <h4 className="text-[16px] font-bold text-black mb-3 leading-snug" dangerouslySetInnerHTML={{ __html: formatBoldText(activity.pregunta!) }}>
                                                                     </h4>
                                                                 )}
 
-                                                                <div className="bg-orange-50/50 p-4 rounded-xl text-sm font-medium text-orange-900 border border-orange-100 mb-6 flex gap-3">
-                                                                    <Sparkles className="w-5 h-5 text-orange-600 shrink-0 mt-0.5" />
-                                                                    <p><strong>Respuesta de la IA:</strong> <span dangerouslySetInnerHTML={{ __html: formatBoldText(activity.respuestaEsperada!) }}></span></p>
+                                                                <div className="bg-emerald-50 p-4 rounded-xl text-[16px] font-sans font-normal text-emerald-900 border border-emerald-200 mb-6 flex gap-3 print:hidden shadow-sm">
+                                                                    <Sparkles className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                                                                    <p><strong>Solucionario Docente (Oculto en PDF):</strong> <span dangerouslySetInnerHTML={{ __html: formatBoldText(activity.respuestaEsperada!) }}></span></p>
                                                                 </div>
 
                                                                 <div className="grid sm:grid-cols-2 gap-4 mb-6">
                                                                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                                                                        <h5 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-2">Capacidad CNEB</h5>
-                                                                        <p className="text-sm font-medium text-black leading-relaxed">{activity.capacidad}</p>
+                                                                        <h4 className="text-[16px] font-bold text-slate-400 uppercase tracking-wider mb-2">Capacidad CNEB</h4>
+                                                                        <p className="text-[16px] font-sans font-normal text-black leading-relaxed">{activity.capacidad}</p>
                                                                     </div>
                                                                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                                                                        <h5 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-2">Estrategia Docente</h5>
-                                                                        <p className="text-sm font-medium text-black leading-relaxed">{activity.estrategiasAplicacion}</p>
+                                                                        <h4 className="text-[16px] font-bold text-slate-400 uppercase tracking-wider mb-2">Estrategia Docente</h4>
+                                                                        <p className="text-[16px] font-sans font-normal text-black leading-relaxed">{activity.estrategiasAplicacion}</p>
                                                                     </div>
                                                                 </div>
 
                                                                 <div>
-                                                                    <h5 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">Rúbrica de Evaluación Delineada</h5>
+                                                                    <h4 className="text-[16px] font-bold text-slate-400 uppercase tracking-wider mb-3">Rúbrica de Evaluación Delineada</h4>
                                                                     <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm print:shadow-none print:border-slate-300">
-                                                                        <table className="w-full text-sm text-left rubric-table">
-                                                                            <thead className="bg-slate-50 text-black font-bold text-xs uppercase tracking-wider">
+                                                                        <table className="w-full text-[16px] font-sans text-left rubric-table">
+                                                                            <thead className="bg-slate-50 text-black font-bold text-[16px] font-sans uppercase tracking-wider">
                                                                                 <tr>
-                                                                                    <th className="px-4 py-3 border-b border-slate-200 w-[25%]">En Inicio</th>
-                                                                                    <th className="px-4 py-3 border-b border-slate-200 w-[25%]">En Proceso</th>
-                                                                                    <th className="px-4 py-3 border-b border-slate-200 w-[25%]">Logrado</th>
-                                                                                    <th className="px-4 py-3 border-b border-slate-200 w-[25%]">Destacado</th>
+                                                                                    <th className="px-4 py-3 border-b border-slate-200 w-[25%] font-bold">En Inicio</th>
+                                                                                    <th className="px-4 py-3 border-b border-slate-200 w-[25%] font-bold">En Proceso</th>
+                                                                                    <th className="px-4 py-3 border-b border-slate-200 w-[25%] font-bold">Logrado</th>
+                                                                                    <th className="px-4 py-3 border-b border-slate-200 w-[25%] font-bold">Destacado</th>
                                                                                 </tr>
                                                                             </thead>
-                                                                            <tbody className="divide-y divide-slate-100 bg-white text-black font-medium">
+                                                                            <tbody className="divide-y divide-slate-100 bg-white text-black font-normal font-sans">
                                                                                 <tr>
-                                                                                    <td className="px-4 py-4 border-r border-slate-100 align-top"><div className="flex gap-2 text-rose-600"><AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />{activity.rubricaEvaluacion.inicio}</div></td>
-                                                                                    <td className="px-4 py-4 border-r border-slate-100 align-top text-amber-600">{activity.rubricaEvaluacion.proceso}</td>
-                                                                                    <td className="px-4 py-4 border-r border-slate-100 align-top text-orange-600">{activity.rubricaEvaluacion.logrado}</td>
-                                                                                    <td className="px-4 py-4 align-top text-blue-600 font-bold">{activity.rubricaEvaluacion.destacado}</td>
+                                                                                    <td className="px-4 py-4 border-r border-slate-100 align-top"><div className="flex gap-2 text-rose-600"><AlertCircle className="w-4 h-4 shrink-0 mt-0.5" /><p>{activity.rubricaEvaluacion.inicio}</p></div></td>
+                                                                                    <td className="px-4 py-4 border-r border-slate-100 align-top text-amber-600"><p>{activity.rubricaEvaluacion.proceso}</p></td>
+                                                                                    <td className="px-4 py-4 border-r border-slate-100 align-top text-orange-600"><p>{activity.rubricaEvaluacion.logrado}</p></td>
+                                                                                    <td className="px-4 py-4 align-top text-blue-600 font-bold"><p>{activity.rubricaEvaluacion.destacado}</p></td>
                                                                                 </tr>
                                                                             </tbody>
                                                                         </table>
@@ -811,31 +947,31 @@ JSON (devuelve SOLO el JSON):
                                             {/* Complementary Materials (Moved to end) */}
                                             {(generatedReading.youtubeUrl || generatedReading.sugerenciaLibro) && (
                                                 <div className="mt-12 pt-8 border-t border-slate-100 print:mt-10 print:break-inside-avoid">
-                                                    <h3 className="text-xl font-black text-black mb-6 flex items-center gap-3">
+                                                    <h2 className="text-[18px] font-bold text-black mb-6 flex items-center gap-3">
                                                         <BookText className="text-orange-600" /> Material Complementario
-                                                    </h3>
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                        {generatedReading.youtubeUrl && (
-                                                            <a href={generatedReading.youtubeUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-4 rounded-2xl bg-red-50 border border-red-100 hover:bg-red-100 transition-colors group">
-                                                                <div className="w-12 h-12 rounded-xl bg-red-600 flex items-center justify-center shrink-0 shadow-lg shadow-red-200">
-                                                                    <Youtube className="w-6 h-6 text-white" />
-                                                                </div>
-                                                                <div>
-                                                                    <p className="font-black text-black group-hover:text-red-700">Explorar Video en YouTube</p>
-                                                                    <p className="text-xs text-red-600 font-bold">Recurso Visual Recomendado</p>
-                                                                </div>
-                                                            </a>
-                                                        )}
+                                                    </h2>
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                         {generatedReading.sugerenciaLibro && (
-                                                            <div className="flex items-center gap-4 p-4 rounded-2xl bg-orange-50 border border-orange-100">
-                                                                <div className="w-12 h-12 rounded-xl bg-orange-600 flex items-center justify-center shrink-0 shadow-lg shadow-orange-200">
-                                                                    <BookOpen className="w-6 h-6 text-white" />
+                                                            <div className="bg-white border text-[16px] font-sans border-slate-200 rounded-2xl p-6 shadow-sm flex items-start gap-4 hover:border-orange-300 transition-colors">
+                                                                <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center text-orange-600 font-bold shrink-0">
+                                                                    📖
                                                                 </div>
                                                                 <div>
-                                                                    <p className="font-black text-black">Obra Sugerida</p>
-                                                                    <p className="text-xs text-orange-700 font-bold">{generatedReading.sugerenciaLibro}</p>
+                                                                    <h4 className="text-[16px] font-bold text-slate-800 mb-1">Lectura Sugerida</h4>
+                                                                    <p className="text-[16px] font-sans font-normal text-slate-600">{generatedReading.sugerenciaLibro}</p>
                                                                 </div>
                                                             </div>
+                                                        )}
+                                                        {generatedReading.youtubeUrl && (
+                                                            <a href={generatedReading.youtubeUrl} target="_blank" rel="noopener noreferrer" className="bg-white border text-[16px] font-sans border-slate-200 rounded-2xl p-6 shadow-sm flex items-start gap-4 hover:border-red-300 transition-colors">
+                                                                <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center text-red-600 font-bold shrink-0">
+                                                                    ▶️
+                                                                </div>
+                                                                <div>
+                                                                    <h4 className="text-[16px] font-bold text-slate-800 mb-1">Video Complementario</h4>
+                                                                    <p className="text-[16px] font-sans font-normal text-slate-600">Explorar Video en YouTube</p>
+                                                                </div>
+                                                            </a>
                                                         )}
                                                     </div>
                                                 </div>
@@ -853,11 +989,11 @@ JSON (devuelve SOLO el JSON):
                             </td>
                         </tr>
                     </tfoot>
-                </table>
+                </table >
                 <div className="mt-12 text-center print:hidden">
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Desarrollado por el Prof. de Innovación Pedagógica Lic. Jesús Luna Polanco - I.E. 20504</p>
                 </div>
-            </div>
+            </div >
         );
     };
 
