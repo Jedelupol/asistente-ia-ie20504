@@ -16,7 +16,7 @@ export default function ReadingDetailPage() {
 
     const [reading, setReading] = useState<Reading | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'oralidad' | 'lectura' | 'escritura'>('lectura');
+    const [activeTab, setActiveTab] = useState<string>('lectura'); // Changed from union to string to allow math tabs
 
     // Local Image State for Teachers/Admins to override the view for Printing
     const [localImage, setLocalImage] = useState<string | null>(null);
@@ -54,6 +54,18 @@ export default function ReadingDetailPage() {
         };
         fetchReading();
     }, [id]);
+
+    const isMath = reading?.actividades.some(a => ['cantidad', 'forma', 'regularidad', 'datos'].includes(a.type)) || false;
+
+    // Auto-select correct first tab on load if the current tab is invalid for the type
+    useEffect(() => {
+        if (!reading) return;
+        if (isMath && !['cantidad', 'forma', 'regularidad', 'datos'].includes(activeTab)) {
+            setActiveTab('cantidad');
+        } else if (!isMath && !['lectura', 'oralidad', 'escritura'].includes(activeTab)) {
+            setActiveTab('lectura');
+        }
+    }, [isMath, reading, activeTab]);
 
     if (isLoading) return <div className="p-8 text-center bg-slate-50 min-h-screen text-primary-600 font-bold flex items-center justify-center">Cargando evaluación...</div>;
     if (!reading) return <div className="p-8 text-center bg-slate-50 min-h-screen flex items-center justify-center">Lectura no encontrada</div>;
@@ -132,9 +144,15 @@ export default function ReadingDetailPage() {
                                                     Volver al Catálogo
                                                 </button>
                                                 <button
+                                                    onClick={handlePrint}
+                                                    className="inline-flex items-center justify-center text-black hover:bg-slate-100 transition-colors bg-white border border-slate-200 shadow-sm p-2.5 rounded-xl w-fit"
+                                                    title="Imprimir Evaluación (PDF)"
+                                                >
+                                                    <Printer className="w-5 h-5" />
+                                                </button>
+                                                <button
                                                     onClick={() => {
                                                         setIsLoading(true);
-                                                        // Forzar la recarga simple re-seteando el ID dispara de nuevo useEffect
                                                         router.replace(`/dashboard/reading/${id}`);
                                                     }}
                                                     className="inline-flex items-center justify-center text-black hover:bg-orange-50 hover:text-orange-600 transition-colors bg-white border border-slate-200 shadow-sm p-2.5 rounded-xl w-fit"
@@ -262,20 +280,29 @@ export default function ReadingDetailPage() {
                                                     </div>
                                                 </div>
 
-                                                {(reading.creatorName || reading.createdAt) && (
-                                                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-4 text-xs sm:text-sm font-medium text-slate-500">
-                                                        {reading.creatorName && (
-                                                            <div className="flex items-center gap-1.5">
-                                                                <PenTool className="w-4 h-4 text-orange-500" />
-                                                                <span>Creado por: <strong className="text-slate-700">{reading.creatorName}</strong></span>
-                                                            </div>
-                                                        )}
-                                                        {reading.creatorName && reading.createdAt && (
-                                                            <span className="text-slate-300 hidden sm:inline">•</span>
-                                                        )}
-                                                        {reading.createdAt && (
-                                                            <div className="flex items-center gap-1.5 text-slate-500">
-                                                                <span>{new Date(reading.createdAt).toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                                                {(reading.creatorName || reading.createdAt || (reading as any).modificaciones) && (
+                                                    <div className="flex flex-col gap-2 mb-4">
+                                                        <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm font-medium text-slate-500">
+                                                            {reading.creatorName && (
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <PenTool className="w-4 h-4 text-orange-500" />
+                                                                    <span>Creado por: <strong className="text-slate-700">{reading.creatorName}</strong></span>
+                                                                </div>
+                                                            )}
+                                                            {reading.creatorName && reading.createdAt && (
+                                                                <span className="text-slate-300 hidden sm:inline">•</span>
+                                                            )}
+                                                            {reading.createdAt && (
+                                                                <div className="flex items-center gap-1.5 text-slate-500">
+                                                                    <span>{new Date(reading.createdAt).toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        {/* Edit History Section */}
+                                                        {(reading as any).modificaciones && (reading as any).modificaciones.length > 0 && (
+                                                            <div className="flex gap-2 items-center text-xs font-semibold text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200 w-fit">
+                                                                <RefreshCw className="w-3.5 h-3.5" />
+                                                                Última modificación por {(reading as any).modificaciones[(reading as any).modificaciones.length - 1].usuario} el {new Date((reading as any).modificaciones[(reading as any).modificaciones.length - 1].fecha).toLocaleDateString('es-PE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                                                             </div>
                                                         )}
                                                     </div>
@@ -325,29 +352,57 @@ export default function ReadingDetailPage() {
                                                     </span>
                                                 </div>
 
-                                                {/* Tabs: Lectura, Escritura, Oralidad */}
+                                                {/* Tabs: Dynamic based on Area */}
                                                 <div className="flex flex-wrap bg-slate-50 rounded-xl border border-slate-200 p-1.5 mb-8 gap-1.5 print:hidden">
-                                                    <button
-                                                        onClick={() => setActiveTab('lectura')}
-                                                        className={`flex-1 min-w-[120px] flex justify-center items-center gap-2 py-3 px-4 rounded-lg font-black text-sm transition-all ${activeTab === 'lectura' ? 'bg-black text-white shadow-md scale-[1.02]' : 'text-black bg-slate-200 hover:bg-slate-300'
-                                                            }`}
-                                                    >
-                                                        <BookOpen className="w-5 h-5" /> Lectura
-                                                    </button>
-                                                    <button
-                                                        onClick={() => setActiveTab('escritura')}
-                                                        className={`flex-1 min-w-[120px] flex justify-center items-center gap-2 py-3 px-4 rounded-lg font-black text-sm transition-all ${activeTab === 'escritura' ? 'bg-black text-white shadow-md scale-[1.02]' : 'text-black bg-slate-200 hover:bg-slate-300'
-                                                            }`}
-                                                    >
-                                                        <PenTool className="w-5 h-5" /> Escritura
-                                                    </button>
-                                                    <button
-                                                        onClick={() => setActiveTab('oralidad')}
-                                                        className={`flex-1 min-w-[120px] flex justify-center items-center gap-2 py-3 px-4 rounded-lg font-black text-sm transition-all ${activeTab === 'oralidad' ? 'bg-black text-white shadow-md scale-[1.02]' : 'text-black bg-slate-200 hover:bg-slate-300'
-                                                            }`}
-                                                    >
-                                                        <MessageCircle className="w-5 h-5" /> Oralidad
-                                                    </button>
+                                                    {isMath ? (
+                                                        <>
+                                                            <button
+                                                                onClick={() => setActiveTab('cantidad')}
+                                                                className={`flex-1 min-w-[100px] flex justify-center items-center gap-2 py-3 px-4 rounded-lg font-black text-xs sm:text-sm transition-all ${activeTab === 'cantidad' ? 'bg-black text-white shadow-md scale-[1.02]' : 'text-black bg-slate-200 hover:bg-slate-300'}`}
+                                                            >
+                                                                Cantidad
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setActiveTab('forma')}
+                                                                className={`flex-1 min-w-[100px] flex justify-center items-center gap-2 py-3 px-4 rounded-lg font-black text-xs sm:text-sm transition-all ${activeTab === 'forma' ? 'bg-black text-white shadow-md scale-[1.02]' : 'text-black bg-slate-200 hover:bg-slate-300'}`}
+                                                            >
+                                                                Forma
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setActiveTab('regularidad')}
+                                                                className={`flex-1 min-w-[100px] flex justify-center items-center gap-2 py-3 px-4 rounded-lg font-black text-xs sm:text-sm transition-all ${activeTab === 'regularidad' ? 'bg-black text-white shadow-md scale-[1.02]' : 'text-black bg-slate-200 hover:bg-slate-300'}`}
+                                                            >
+                                                                Regularidad
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setActiveTab('datos')}
+                                                                className={`flex-1 min-w-[100px] flex justify-center items-center gap-2 py-3 px-4 rounded-lg font-black text-xs sm:text-sm transition-all ${activeTab === 'datos' ? 'bg-black text-white shadow-md scale-[1.02]' : 'text-black bg-slate-200 hover:bg-slate-300'}`}
+                                                            >
+                                                                Datos
+                                                            </button>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <button
+                                                                onClick={() => setActiveTab('lectura')}
+                                                                className={`flex-1 min-w-[120px] flex justify-center items-center gap-2 py-3 px-4 rounded-lg font-black text-sm transition-all ${activeTab === 'lectura' ? 'bg-black text-white shadow-md scale-[1.02]' : 'text-black bg-slate-200 hover:bg-slate-300'}`}
+                                                            >
+                                                                <BookOpen className="w-5 h-5" /> Lectura
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setActiveTab('escritura')}
+                                                                className={`flex-1 min-w-[120px] flex justify-center items-center gap-2 py-3 px-4 rounded-lg font-black text-sm transition-all ${activeTab === 'escritura' ? 'bg-black text-white shadow-md scale-[1.02]' : 'text-black bg-slate-200 hover:bg-slate-300'}`}
+                                                            >
+                                                                <PenTool className="w-5 h-5" /> Escritura
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setActiveTab('oralidad')}
+                                                                className={`flex-1 min-w-[120px] flex justify-center items-center gap-2 py-3 px-4 rounded-lg font-black text-sm transition-all ${activeTab === 'oralidad' ? 'bg-black text-white shadow-md scale-[1.02]' : 'text-black bg-slate-200 hover:bg-slate-300'}`}
+                                                            >
+                                                                <MessageCircle className="w-5 h-5" /> Oralidad
+                                                            </button>
+                                                        </>
+                                                    )}
                                                 </div>
 
                                                 {/* Activities List */}
@@ -440,7 +495,7 @@ export default function ReadingDetailPage() {
                                                                                 <thead className="bg-slate-50 border-b border-slate-200">
                                                                                     <tr>
                                                                                         <th className="px-5 py-4 font-extrabold w-[25%] border-r border-slate-200 text-orange-800 bg-orange-50/80">AD - Destacado</th>
-                                                                                        <th className="px-5 py-4 font-extrabold w-[25%] border-r border-slate-200 text-blue-800 bg-blue-50/80">A - Logrado</th>
+                                                                                        <th className="px-5 py-4 font-extrabold w-[25%] border-r border-slate-200 text-emerald-800 bg-emerald-50/80">A - Logrado</th>
                                                                                         <th className="px-5 py-4 font-extrabold w-[25%] border-r border-slate-200 text-amber-800 bg-amber-50/80">B - En Proceso</th>
                                                                                         <th className="px-5 py-4 font-extrabold w-[25%] text-rose-800 bg-rose-50/80">C - En Inicio</th>
                                                                                     </tr>
@@ -448,7 +503,7 @@ export default function ReadingDetailPage() {
                                                                                 <tbody className="divide-y divide-slate-100 bg-white">
                                                                                     <tr>
                                                                                         <td className="px-5 py-5 text-orange-950 border-r border-slate-100 align-top leading-relaxed font-medium">{activity.rubricaEvaluacion.destacado}</td>
-                                                                                        <td className="px-5 py-5 text-blue-950 border-r border-slate-100 align-top leading-relaxed font-medium">{activity.rubricaEvaluacion.logrado}</td>
+                                                                                        <td className="px-5 py-5 text-emerald-950 border-r border-slate-100 align-top leading-relaxed font-medium">{activity.rubricaEvaluacion.logrado}</td>
                                                                                         <td className="px-5 py-5 text-amber-950 border-r border-slate-100 align-top leading-relaxed font-medium">{activity.rubricaEvaluacion.proceso}</td>
                                                                                         <td className="px-5 py-5 text-rose-950 align-top leading-relaxed font-medium">{activity.rubricaEvaluacion.inicio}</td>
                                                                                     </tr>

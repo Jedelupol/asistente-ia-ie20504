@@ -202,7 +202,7 @@ function DashboardContent() {
                     </button>
                     <button
                         onClick={() => handleNivelChange('secundaria')}
-                        className={`flex-1 py-4 px-6 rounded-xl font-black text-sm uppercase tracking-wider transition-all duration-300 ${isSecundaria ? 'bg-blue-600 text-white shadow-lg scale-[1.02]' : 'text-slate-500 hover:bg-slate-300/50 hover:text-slate-700'}`}
+                        className={`flex-1 py-4 px-6 rounded-xl font-black text-sm uppercase tracking-wider transition-all duration-300 ${isSecundaria ? 'bg-primary-600 text-white shadow-lg scale-[1.02]' : 'text-slate-500 hover:bg-slate-300/50 hover:text-slate-700'}`}
                     >
                         Vista Secundaria
                     </button>
@@ -421,13 +421,13 @@ function DashboardContent() {
                             </>
                         ) : (
                             <>
-                                <div className="w-20 h-20 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-6 text-4xl shadow-inner border border-blue-100">
+                                <div className="w-20 h-20 bg-primary-50 text-primary-600 rounded-full flex items-center justify-center mx-auto mb-6 text-4xl shadow-inner border border-primary-100">
                                     🚀
                                 </div>
                                 <h3 className="text-2xl font-black text-black mb-4">¡Aún no hay retos de Secundaria!</h3>
                                 <p className="text-slate-600 font-medium text-lg">
                                     Estimado (a) docente, ¿listo para crear el primer desafío STEAM de la I.E. 20504?
-                                    <br /><span className="text-blue-600 font-bold mt-2 inline-block">¡Dirígete al Copiloto para comenzar!</span>
+                                    <br /><span className="text-primary-600 font-bold mt-2 inline-block">¡Dirígete al Copiloto para comenzar!</span>
                                 </p>
                             </>
                         )}

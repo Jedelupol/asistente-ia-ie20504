@@ -436,7 +436,7 @@ JSON (devuelve SOLO el JSON validado):
                             <input type="radio" name="nivel" className="hidden" value="Primaria" onChange={(e) => setFormData({ ...formData, nivelMaestro: e.target.value, ciclo: '1er Grado' })} checked={formData.nivelMaestro === 'Primaria'} />
                             Primaria (Enfoque Lúdico)
                         </label>
-                        <label className={`cursor-pointer flex-1 text-center py-3 rounded-xl border-2 font-black transition-all ${formData.nivelMaestro === 'Secundaria' ? 'border-blue-500 bg-blue-500 text-white shadow-md' : 'border-slate-200 bg-white text-slate-500 hover:border-blue-300'}`}>
+                        <label className={`cursor-pointer flex-1 text-center py-3 rounded-xl border-2 font-black transition-all ${formData.nivelMaestro === 'Secundaria' ? 'border-primary-500 bg-primary-500 text-white shadow-md' : 'border-slate-200 bg-white text-slate-500 hover:border-primary-300'}`}>
                             <input type="radio" name="nivel" className="hidden" value="Secundaria" onChange={(e) => setFormData({ ...formData, nivelMaestro: e.target.value, ciclo: '1er Año' })} checked={formData.nivelMaestro === 'Secundaria'} />
                             Secundaria (Enfoque STEAM)
                         </label>
@@ -532,10 +532,10 @@ JSON (devuelve SOLO el JSON validado):
                             "Resuelve problemas de Forma, Movimiento y Localización",
                             "Resuelve problemas de Gestión de Datos e Incertidumbre"
                         ].map(comp => (
-                            <label key={comp} className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${formData.competencia.includes(comp) ? 'border-blue-500 bg-blue-50 text-blue-900 shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-blue-200'}`}>
+                            <label key={comp} className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${formData.competencia.includes(comp) ? 'border-primary-500 bg-primary-50 text-primary-900 shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-primary-200'}`}>
                                 <input
                                     type="checkbox"
-                                    className="w-5 h-5 text-blue-500 border-slate-300 rounded focus:ring-blue-500"
+                                    className="w-5 h-5 text-primary-500 border-slate-300 rounded focus:ring-primary-500"
                                     checked={formData.competencia.includes(comp)}
                                     onChange={(e) => {
                                         if (e.target.checked) setFormData({ ...formData, competencia: [...formData.competencia, comp] });
@@ -597,7 +597,7 @@ JSON (devuelve SOLO el JSON validado):
                             value={formData.valor}
                             onChange={(e) => setFormData({ ...formData, valor: e.target.value })}
                         />
-                        <p className="text-xs text-slate-500 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 leading-relaxed">
+                        <p className="text-xs text-slate-500 bg-primary-50 border border-primary-100 rounded-lg px-3 py-2 leading-relaxed">
                             🎯 <strong>Tip:</strong> Indica el enfoque del CNEB que guiará la actitud y los valores de los estudiantes durante la resolución del problema.
                         </p>
                     </div>
@@ -674,7 +674,7 @@ JSON (devuelve SOLO el JSON validado):
 
         // Label & color mappings for math competency types
         const MATH_TAB_CONFIG: Record<string, { label: string; icon: string; color: string }> = {
-            cantidad: { label: 'Cantidad', icon: '🔢', color: 'blue' },
+            cantidad: { label: 'Cantidad', icon: '🔢', color: 'emerald' },
             regularidad: { label: 'Regularidad', icon: '📐', color: 'purple' },
             forma: { label: 'Forma y Localiz.', icon: '📍', color: 'green' },
             datos: { label: 'Datos e Incertidumbre', icon: '📊', color: 'orange' },
@@ -751,7 +751,7 @@ JSON (devuelve SOLO el JSON validado):
                                                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[14px] font-bold bg-purple-50 text-purple-700 border border-purple-100 tracking-wide uppercase">
                                                         Grado {generatedReading.grado}
                                                     </span>
-                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[14px] font-bold bg-blue-50 text-blue-700 border border-blue-100 uppercase tracking-wide">
+                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[14px] font-bold bg-primary-50 text-primary-700 border border-primary-100 uppercase tracking-wide">
                                                         {generatedReading.tipoTexto}
                                                     </span>
                                                 </div>
@@ -931,8 +931,8 @@ JSON (devuelve SOLO el JSON validado):
                                                                                 <tr>
                                                                                     <td className="px-4 py-4 border-r border-slate-100 align-top"><div className="flex gap-2 text-rose-600"><AlertCircle className="w-4 h-4 shrink-0 mt-0.5" /><p>{activity.rubricaEvaluacion.inicio}</p></div></td>
                                                                                     <td className="px-4 py-4 border-r border-slate-100 align-top text-amber-600"><p>{activity.rubricaEvaluacion.proceso}</p></td>
-                                                                                    <td className="px-4 py-4 border-r border-slate-100 align-top text-orange-600"><p>{activity.rubricaEvaluacion.logrado}</p></td>
-                                                                                    <td className="px-4 py-4 align-top text-blue-600 font-bold"><p>{activity.rubricaEvaluacion.destacado}</p></td>
+                                                                                    <td className="px-4 py-4 border-r border-slate-100 align-top text-emerald-600"><p>{activity.rubricaEvaluacion.logrado}</p></td>
+                                                                                    <td className="px-4 py-4 align-top text-orange-600 font-bold"><p>{activity.rubricaEvaluacion.destacado}</p></td>
                                                                                 </tr>
                                                                             </tbody>
                                                                         </table>

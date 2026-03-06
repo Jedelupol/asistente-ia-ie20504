@@ -92,7 +92,7 @@ export default function Header() {
                                     </Link>
                                 )}
                                 {pathname !== '/admin' && (
-                                    <Link href="/admin" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 hover:bg-blue-600 px-3 py-2 rounded-lg transition-colors text-[10px] sm:text-sm font-extrabold bg-blue-500 text-black shadow-md border border-blue-400">
+                                    <Link href="/admin" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 hover:bg-primary-700 px-3 py-2 rounded-lg transition-colors text-[10px] sm:text-sm font-extrabold bg-primary-600 text-white shadow-md border border-primary-500">
                                         <span className="text-xl leading-none">⚙️</span>
                                         <span>CONFIGURACIÓN</span>
                                     </Link>

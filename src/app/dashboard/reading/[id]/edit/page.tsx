@@ -8,10 +8,12 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { mockReadings, Reading, CompetencyActivity } from '@/data/mockReadings';
 import { ArrowLeft, Save, Plus, Trash2, LayoutDashboard } from 'lucide-react';
 import Link from 'next/link';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function EditReadingPage({ params }: { params: Promise<{ id: string }> }) {
     const resolvedParams = use(params);
     const router = useRouter();
+    const { user } = useAuth();
     const [reading, setReading] = useState<Reading | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -129,7 +131,17 @@ export default function EditReadingPage({ params }: { params: Promise<{ id: stri
         if (!reading) return;
         setSaving(true);
         try {
-            await setDoc(doc(db, 'readings', reading.id), reading);
+            // Register modification history
+            const editPayload = {
+                usuario: user?.displayName || user?.email || 'Docente Editor',
+                fecha: new Date().toISOString()
+            };
+            const updatedReading = {
+                ...reading,
+                modificaciones: [...((reading as any).modificaciones || []), editPayload]
+            };
+
+            await setDoc(doc(db, 'readings', reading.id), updatedReading);
             alert("¡Lectura guardada correctamente!");
             router.push('/dashboard');
         } catch (error) {
@@ -317,13 +329,13 @@ export default function EditReadingPage({ params }: { params: Promise<{ id: stri
                                     <div className="mt-6 pt-6 border-t border-slate-200">
                                         <h4 className="text-sm font-bold text-black mb-4">Rúbrica Específica</h4>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                                            <div className="bg-white p-3 rounded-xl border border-blue-100">
-                                                <div className="text-[10px] font-black uppercase text-blue-600 mb-2">Destacado (AD)</div>
-                                                <textarea value={act.rubricaEvaluacion.destacado} onChange={(e) => handleRubricChange(idx, 'destacado', e.target.value)} rows={3} className="w-full text-xs p-2 bg-blue-50/30 text-slate-900 rounded border-0 focus:ring-1 focus:ring-blue-300 outline-none resize-y" />
-                                            </div>
                                             <div className="bg-white p-3 rounded-xl border border-orange-100">
-                                                <div className="text-[10px] font-black uppercase text-orange-600 mb-2">Logrado (A)</div>
-                                                <textarea value={act.rubricaEvaluacion.logrado} onChange={(e) => handleRubricChange(idx, 'logrado', e.target.value)} rows={3} className="w-full text-xs p-2 bg-orange-50/30 text-slate-900 rounded border-0 focus:ring-1 focus:ring-orange-300 outline-none resize-y" />
+                                                <div className="text-[10px] font-black uppercase text-orange-600 mb-2">Destacado (AD)</div>
+                                                <textarea value={act.rubricaEvaluacion.destacado} onChange={(e) => handleRubricChange(idx, 'destacado', e.target.value)} rows={3} className="w-full text-xs p-2 bg-orange-50/30 text-slate-900 rounded border-0 focus:ring-1 focus:ring-orange-300 outline-none resize-y" />
+                                            </div>
+                                            <div className="bg-white p-3 rounded-xl border border-emerald-100">
+                                                <div className="text-[10px] font-black uppercase text-emerald-600 mb-2">Logrado (A)</div>
+                                                <textarea value={act.rubricaEvaluacion.logrado} onChange={(e) => handleRubricChange(idx, 'logrado', e.target.value)} rows={3} className="w-full text-xs p-2 bg-emerald-50/30 text-slate-900 rounded border-0 focus:ring-1 focus:ring-emerald-300 outline-none resize-y" />
                                             </div>
                                             <div className="bg-white p-3 rounded-xl border border-amber-100">
                                                 <div className="text-[10px] font-black uppercase text-amber-600 mb-2">En Proceso (B)</div>
