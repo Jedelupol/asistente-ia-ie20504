@@ -54,7 +54,7 @@ export default function Header() {
     };
 
     return (
-        <header className="bg-primary-600 text-black shadow-md sticky top-0 z-50">
+        <header className="bg-primary-900 text-white shadow-md sticky top-0 z-50">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between items-center h-16">
                     {/* Logo & Title */}
@@ -64,8 +64,8 @@ export default function Header() {
                                 <Image src={logoUrl} alt="Logo" width={40} height={40} className="object-cover" />
                             </div>
                         ) : (
-                            <div className="w-10 h-10 bg-primary-100/20 rounded-full flex items-center justify-center border border-primary-100/50 overflow-hidden shrink-0">
-                                <span className="text-xs font-bold text-black">IE</span>
+                            <div className="w-10 h-10 bg-primary-800 rounded-full flex items-center justify-center border border-primary-700 overflow-hidden shrink-0">
+                                <span className="text-xs font-bold text-white">IE</span>
                             </div>
                         )}
 
@@ -73,7 +73,7 @@ export default function Header() {
                             <h1 className="text-lg sm:text-xl font-bold leading-tight tracking-tight">
                                 {isLoading ? 'Cargando configuración institucional...' : institutionName}
                             </h1>
-                            <span className="text-xs text-black hidden sm:block">
+                            <span className="text-xs text-gray-200 hidden sm:block">
                                 Plataforma de Control de Lecturas
                             </span>
                         </div>
@@ -86,32 +86,38 @@ export default function Header() {
                                 {/* NAVIGATION MENUS REMOVED AS REQUESTED */}
 
                                 {pathname !== '/copiloto' && (
-                                    <Link href="/copiloto" className="hidden sm:flex items-center gap-2 hover:bg-orange-600 px-3 py-2 rounded-lg transition-colors text-[10px] sm:text-sm font-extrabold bg-orange-500 text-black shadow-md border border-orange-400">
+                                    <Link href="/copiloto" className="hidden sm:flex items-center gap-2 hover:bg-orange-600 hover:text-white px-3 py-2 rounded-lg transition-colors text-[10px] sm:text-sm font-extrabold bg-orange-500 text-white shadow-md border border-orange-400">
                                         <Bot className="w-5 h-5" />
                                         <span>COPILOTO IA</span>
                                     </Link>
                                 )}
+                                {role === 'admin' && pathname !== '/dashboard/analytics' && (
+                                    <Link href="/dashboard/analytics" className="hidden sm:flex items-center gap-2 hover:bg-stone-200 hover:text-stone-800 px-3 py-2 rounded-lg transition-colors text-[10px] sm:text-sm font-extrabold bg-stone-100 text-[#5D4037] shadow-md border border-stone-300">
+                                        <BookOpen className="w-5 h-5" />
+                                        <span>ANALÍTICA</span>
+                                    </Link>
+                                )}
                                 {pathname !== '/admin' && (
-                                    <Link href="/admin" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 hover:bg-blue-600 px-3 py-2 rounded-lg transition-colors text-[10px] sm:text-sm font-extrabold bg-blue-500 text-black shadow-md border border-blue-400">
+                                    <Link href="/admin" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 hover:bg-primary-700 px-3 py-2 rounded-lg transition-colors text-[10px] sm:text-sm font-extrabold bg-primary-600 text-white shadow-md border border-primary-500">
                                         <span className="text-xl leading-none">⚙️</span>
                                         <span>CONFIGURACIÓN</span>
                                     </Link>
                                 )}
                                 {pathname !== '/dashboard' && pathname !== '/' && (
-                                    <Link href="/dashboard" className="hidden sm:flex items-center gap-2 hover:bg-white/10 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium">
+                                    <Link href="/dashboard" className="hidden sm:flex items-center gap-2 hover:bg-primary-800 hover:text-gray-200 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium">
                                         <LayoutDashboard className="w-4 h-4" /> Inicio
                                     </Link>
                                 )}
-                                <div className="hidden sm:flex flex-col items-end px-3 py-1.5 border-l border-primary-500/50">
-                                    <span className="text-sm text-black font-extrabold truncate max-w-[180px]">¡Bienvenido, Estimado Docente!</span>
-                                    <span className={`text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-sm ${role === 'admin' ? 'bg-rose-500 text-white' : 'bg-primary-500 text-black'}`}>
+                                <div className="hidden sm:flex flex-col items-end px-3 py-1.5 border-l border-primary-700">
+                                    <span className="text-sm text-white font-extrabold truncate max-w-[180px]">¡Bienvenido, Estimado Docente!</span>
+                                    <span className={`text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-sm ${role === 'admin' ? 'bg-rose-500 text-white' : 'bg-primary-700 text-white border border-primary-600'}`}>
                                         [{role === 'admin' ? 'ADMIN' : 'DOCENTE'}]
                                     </span>
                                 </div>
                                 <button
                                     onClick={handleLogout}
                                     title="Cerrar Sesión"
-                                    className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                                    className="p-2 hover:bg-primary-800 hover:text-gray-200 rounded-lg transition-colors"
                                 >
                                     <LogOut className="w-5 h-5" />
                                 </button>

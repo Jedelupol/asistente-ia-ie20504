@@ -1,6 +1,21 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
+
+// Helper: call a Gemini model and return { response, data }
+async function callGemini(apiKey: string, model: string, finalPrompt: string, temperature: number) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            contents: [{ parts: [{ text: finalPrompt }] }],
+            generationConfig: { temperature }
+        })
+    });
+    const data = await response.json();
+    return { response, data };
+}
 
 export async function POST(req: Request) {
     try {
@@ -18,128 +33,128 @@ export async function POST(req: Request) {
         const cnebRules = `
 REGLAS ESTRICTAS DE CALIDAD Y CNEB:
 1. FILTRO LINGÜÍSTICO: Prohibido usar palabras inventadas, mal escritas o caracteres extraños. Usa español neutro, codificación UTF-8 limpia. Escribe en español estándar de Perú. No inventes palabras.
-2. ALINEACIÓN CNEB: Genera actividades basándote ESTRICTAMENTE en las competencias que se detallan en el prompt. No agregues competencias que no fueron solicitadas.
+2. ALINEACIÓN CNEB: Eres un experto en el Currículo Nacional de la Educación Básica (CNEB) de Perú. Tienes ESTRICTAMENTE PROHIBIDO inventar competencias o formatos. Tu respuesta debe articularse lógicamente y ÚNICAMENTE con las competencias que se detallan en el prompt. No agregues competencias que no fueron solicitadas.
 3. CONSIGNAS DE DESEMPEÑO: Las actividades DEBEN ser retos o acciones ("consignas") alineadas a las capacidades requeridas, nunca preguntas de opción múltiple simples.
 4. FORMATO: Devuelve ÚNICAMENTE un JSON puro y válido que cumpla con el esquema.
 `;
 
         const finalPrompt = prompt + "\n\n" + cnebRules + "\n\nCRÍTICO: Devuelve única y exclusivamente un objeto JSON. NO añadas etiquetas de código markdown (como ```json o similares).";
+        const tempNum = temperature !== undefined ? parseFloat(String(temperature)) : 0.7;
 
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+        // ── MODEL CHAIN: gemini-2.5-flash → gemini-1.5-flash (fallback) ──────
+        const MODELS = ['gemini-2.5-flash', 'gemini-1.5-flash'];
+        let textPayload: string | null = null;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let lastData: any = {};
 
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [
-                    {
-                        parts: [
-                            { text: finalPrompt }
-                        ]
-                    }
-                ],
-                generationConfig: {
-                    temperature: temperature !== undefined ? parseFloat(temperature) : 0.7
-                }
-            })
-        });
+        for (const model of MODELS) {
+            console.log(`🤖 [GEMINI] Intentando con modelo: ${model}`);
+            const { response, data } = await callGemini(apiKey, model, finalPrompt, tempNum);
+            lastData = data;
 
-        const data = await response.json();
+            if (!response.ok) {
+                console.error(`❌ [GEMINI] HTTP ${response.status} con modelo ${model}:`, data);
+                continue;
+            }
 
-        // INTERCEPCIÓN DE ERRORES EXACTOS DE GOOGLE
-        if (!response.ok) {
-            console.error("ERROR EXACTO DEVUELTO POR GOOGLE:", data);
-            return NextResponse.json({
-                error: "Google API Error",
-                message: data.error?.message || "Fallo desconocido de conectividad con Gemini",
-                details: data
-            }, {
-                status: response.status,
-                headers: { 'Content-Type': 'application/json; charset=utf-8' }
-            });
+            const candidate = data.candidates?.[0];
+            const finishReason: string | undefined = candidate?.finishReason;
+
+            // If blocked by safety or recitation, try next model
+            if (finishReason && finishReason !== 'STOP' && finishReason !== 'MAX_TOKENS') {
+                console.warn(`⚠️ [GEMINI] ${model} bloqueó. finishReason = ${finishReason}`);
+                continue;
+            }
+
+            const text: string | undefined = candidate?.content?.parts?.[0]?.text;
+            if (text) {
+                textPayload = text;
+                console.log(`✅ [GEMINI] Respuesta OK con modelo: ${model}`);
+                break;
+            }
+
+            console.warn(`⚠️ [GEMINI] ${model} devolvió payload vacío. Probando siguiente modelo...`);
         }
 
-        const textPayload = data.candidates?.[0]?.content?.parts?.[0]?.text;
-
+        // All models failed — return user-friendly message
         if (!textPayload) {
-            console.error("Payload Vacio o Inválido de Google:", data);
+            const finishReason: string | undefined = lastData?.candidates?.[0]?.finishReason;
+            const blockMessages: Record<string, string> = {
+                SAFETY: "La IA bloqueó la solicitud por filtros de seguridad. Intenta reformular el contexto institucional o los enfoques transversales.",
+                RECITATION: "La IA detectó contenido repetitivo. Cambia la situación significativa y vuelve a intentarlo.",
+                MAX_TOKENS: "El prompt es demasiado largo. Selecciona menos competencias o simplifica el contexto.",
+            };
+            const userMsg = (finishReason && blockMessages[finishReason])
+                ? blockMessages[finishReason]
+                : "La IA no pudo generar contenido. Verifica tu API Key de Gemini o inténtalo de nuevo en unos segundos.";
+
+            console.error("❌ [GEMINI] Todos los modelos fallaron. Último payload:", JSON.stringify(lastData).slice(0, 800));
             return NextResponse.json(
-                { error: "Estructura de respuesta inesperada desde la API de Google" },
+                { error: userMsg },
                 { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
             );
         }
 
-        // PASO 4: LIMPIEZA DE PARSEO JSON EN CASO DE FALLA (MARKDOWN) Y ALUCINACIONES
-        // Normalización NFC para reconstruir caracteres diacríticos separados y limpieza base
-        let cleanJsonString = textPayload.normalize("NFC").replace(/```json/gi, "").replace(/```/g, "").trim();
+        // PASO 4: LIMPIEZA ROBUSTA Y EXTRACCIÓN DE JSON
+        let cleanJsonString = textPayload.normalize("NFC")
+            .replace(/```json/gi, "")
+            .replace(/```/g, "")
+            .replace(/\?{2,}/g, "")
+            .replace(/\uFFFD/g, "")
+            .trim();
 
-        // Limpieza de rastros de "????" iterados o caracteres corruptos
-        cleanJsonString = cleanJsonString.replace(/\?{2,}/g, ""); // Elimina signos de interrogación múltiples
-        cleanJsonString = cleanJsonString.replace(/\uFFFD/g, ""); // Elimina el caracter de reemplazo unicode corrupto
+        console.log("--- PAYLOAD GEMINI (primeros 500 chars) ---");
+        console.log(cleanJsonString.slice(0, 500));
+        console.log("-------------------------------------------");
 
-        // PRUEBA DE TEXTO: Verificar caracteres especiales en la consola
-        console.log("--- VERIFICACIÓN DE CARACTERES UTF-8 ANTES DEL ENVÍO ---");
-        const previewText = cleanJsonString.slice(0, 500);
-        console.log("Muestra del inicio del payload generado para evaluar tildes y eñes:");
-        console.log(previewText + "...\n---------------------------------------------------------");
+        // EXTRACCIÓN MULTICAPA: parse directo → regex objeto → regex array
+        let finalJsonCandidate = cleanJsonString;
+        if (!cleanJsonString.startsWith('{') && !cleanJsonString.startsWith('[')) {
+            const jsonObjectMatch = cleanJsonString.match(/\{[\s\S]*\}/);
+            const jsonArrayMatch = cleanJsonString.match(/\[[\s\S]*\]/);
+            if (jsonObjectMatch) {
+                finalJsonCandidate = jsonObjectMatch[0];
+                console.log("⚠️ JSON extraído con regex (la IA generó prosa extra).");
+            } else if (jsonArrayMatch) {
+                finalJsonCandidate = jsonArrayMatch[0];
+            }
+        }
 
         try {
-            const finalJson = JSON.parse(cleanJsonString);
+            const finalJson = JSON.parse(finalJsonCandidate);
 
-            // --- FASE 6: UNSPLASH INTEGRATION ---
+            // --- UNSPLASH INTEGRATION ---
             if (finalJson.searchKeywords && process.env.UNSPLASH_ACCESS_KEY) {
                 try {
                     const unsplashQuery = encodeURIComponent(finalJson.searchKeywords);
                     const unsplashUrl = `https://api.unsplash.com/search/photos?query=${unsplashQuery}&per_page=1&orientation=landscape`;
-
-                    console.log("📸 [UNSPLASH] Iniciando búsqueda...");
-                    console.log(`📸 [UNSPLASH] Query: ${finalJson.searchKeywords}`);
-                    console.log(`📸 [UNSPLASH] Access Key (mask): ${process.env.UNSPLASH_ACCESS_KEY.slice(0, 4)}...${process.env.UNSPLASH_ACCESS_KEY.slice(-4)}`);
-
                     const unsplashRes = await fetch(unsplashUrl, {
-                        headers: {
-                            Authorization: `Client-ID ${process.env.UNSPLASH_ACCESS_KEY}`
-                        }
+                        headers: { Authorization: `Client-ID ${process.env.UNSPLASH_ACCESS_KEY}` }
                     });
-
-                    console.log(`📸 [UNSPLASH] HTTP Status: ${unsplashRes.status} ${unsplashRes.statusText}`);
-
                     if (unsplashRes.ok) {
                         const unsplashData = await unsplashRes.json();
-                        console.log(`📸 [UNSPLASH] OK! Resultados encontrados: ${unsplashData.results.length}`);
-                        if (unsplashData.results.length > 0) {
-                            console.log(`📸 [UNSPLASH] URL Imagen: ${unsplashData.results[0].urls.regular}`);
-                        }
-                        finalJson.imagenesReferencia = unsplashData.results.map((r: { urls: { regular: string } }) => r.urls.regular);
+                        finalJson.imagenesReferencia = unsplashData.results.map(
+                            (r: { urls: { regular: string } }) => r.urls.regular
+                        );
                     } else {
-                        const errorBody = await unsplashRes.text();
-                        console.error(`❌ [UNSPLASH] ERROR API (${unsplashRes.status}):`, errorBody);
-
-                        // Diagnóstico específico para el Lic. Jesús
-                        if (unsplashRes.status === 401) console.error("⚠️ DIAGNÓSTICO: Llave de Unsplash Inválida (Unauthorized).");
-                        if (unsplashRes.status === 403) console.error("⚠️ DIAGNÓSTICO: Límite de API de Unsplash superado o cuenta bloqueada.");
-
-                        finalJson.imagenesReferencia = []; // Fallback empty
+                        finalJson.imagenesReferencia = [];
                     }
-                } catch (unsplashError) {
-                    console.error("❌ [UNSPLASH] Error crítico en fetch:", unsplashError);
-                    finalJson.imagenesReferencia = []; // Fallback empty
+                } catch {
+                    finalJson.imagenesReferencia = [];
                 }
-            } else if (finalJson.searchKeywords) {
-                console.warn("⚠️ [UNSPLASH] searchKeywords presentes pero falta UNSPLASH_ACCESS_KEY en el entorno.");
             }
-            // ------------------------------------
 
             return new NextResponse(JSON.stringify(finalJson), {
                 status: 200,
                 headers: { 'Content-Type': 'application/json; charset=utf-8' }
             });
+
         } catch (parseError: unknown) {
-            console.error("Fallo de Parseo JSON. Cadena devuelta:", cleanJsonString, parseError);
-            return new NextResponse(JSON.stringify({ error: "La IA generó un formato corrupto. Intente de nuevo.", raw: cleanJsonString }), {
-                status: 500,
-                headers: { 'Content-Type': 'application/json; charset=utf-8' }
-            });
+            console.error("Fallo de Parseo JSON:", parseError);
+            return new NextResponse(
+                JSON.stringify({ error: "La IA generó un formato corrupto. Intente de nuevo.", raw: cleanJsonString.slice(0, 300) }),
+                { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
+            );
         }
 
     } catch (error: unknown) {

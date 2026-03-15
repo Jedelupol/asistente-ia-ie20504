@@ -103,7 +103,7 @@ export default function LoginPage() {
             </form>
 
             <div className="mt-8 text-xs text-slate-400">
-              <p>Sistema de Gestión Educativa - Nivel Primaria</p>
+              <p>Sistema de Gestión Educativa</p>
               <p>Protégete: Recuerda cerrar tu sesión al finalizar.</p>
             </div>
           </div>

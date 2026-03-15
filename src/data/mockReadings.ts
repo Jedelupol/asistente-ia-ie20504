@@ -1,4 +1,4 @@
-﻿// mockReadings.ts
+// mockReadings.ts
 
 export type RubricaLevel = {
     destacado: string;
@@ -9,7 +9,7 @@ export type RubricaLevel = {
 
 export interface CompetencyActivity {
     id: string;
-    type: 'oralidad' | 'lectura' | 'escritura';
+    type: 'oralidad' | 'lectura' | 'escritura' | 'steam' | 'cantidad' | 'forma' | 'regularidad' | 'datos';
     pregunta: string;
     respuestaEsperada: string;
     capacidad: string;
@@ -44,6 +44,10 @@ export interface Reading {
     actividades: CompetencyActivity[];
     esVisual?: boolean;
     imagenesSecuencia?: string[];
+    createdAt?: string;
+    creatorName?: string;
+    creatorId?: string;
+    area?: string;
 }
 
 export const mockReadings: Reading[] = [

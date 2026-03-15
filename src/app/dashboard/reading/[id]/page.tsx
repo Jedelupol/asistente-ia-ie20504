@@ -4,19 +4,25 @@ import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
 import Header from '@/components/Header';
+import { QRCodeSVG } from 'qrcode.react';
 import { mockReadings, Reading } from '@/data/mockReadings';
-import { ChevronLeft, MessageCircle, BookOpen, PenTool, Youtube, AlertCircle, BookText, RefreshCw, Printer, ImagePlus } from 'lucide-react';
+import { ChevronLeft, MessageCircle, BookOpen, PenTool, Youtube, AlertCircle, BookText, RefreshCw, Printer, ImagePlus, Volume2 } from 'lucide-react';
 import ImageWithFallback from '@/components/ImageWithFallback';
 import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function ReadingDetailPage() {
     const { id } = useParams();
     const router = useRouter();
+    const { user } = useAuth();
 
     const [reading, setReading] = useState<Reading | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'oralidad' | 'lectura' | 'escritura'>('lectura');
+    const [activeTab, setActiveTab] = useState<string>('lectura'); // Changed from union to string to allow math tabs
 
     // Local Image State for Teachers/Admins to override the view for Printing
     const [localImage, setLocalImage] = useState<string | null>(null);
@@ -55,10 +61,29 @@ export default function ReadingDetailPage() {
         fetchReading();
     }, [id]);
 
+    const isMath = reading?.actividades.some(a => ['cantidad', 'forma', 'regularidad', 'datos'].includes(a.type)) || false;
+    const isSteam = reading?.area === 'Integrada (STEAM)';
+
+    // Auto-select correct first tab on load if the current tab is invalid for the type
+    useEffect(() => {
+        if (!reading) return;
+        if (isMath && !['cantidad', 'forma', 'regularidad', 'datos'].includes(activeTab)) {
+            setActiveTab('cantidad');
+        } else if (!isMath && !['lectura', 'oralidad', 'escritura'].includes(activeTab)) {
+            setActiveTab('lectura');
+        }
+    }, [isMath, reading, activeTab]);
+
     if (isLoading) return <div className="p-8 text-center bg-slate-50 min-h-screen text-primary-600 font-bold flex items-center justify-center">Cargando evaluación...</div>;
     if (!reading) return <div className="p-8 text-center bg-slate-50 min-h-screen flex items-center justify-center">Lectura no encontrada</div>;
 
-    const activeActivities = reading.actividades.filter(a => a.type === activeTab);
+    const activeActivities = reading.actividades.filter(a => {
+        if (isSteam && a.type === 'steam') {
+            // For STEAM, the single 'steam' activity should appear in the 'oralidad' (Guía Docente) tab
+            return activeTab === 'oralidad';
+        }
+        return a.type === activeTab;
+    });
 
     const handlePrint = () => {
         if (!reading) return;
@@ -69,7 +94,7 @@ export default function ReadingDetailPage() {
         setTimeout(() => {
             window.print();
             document.title = originalTitle;
-        }, 100);
+        }, 800);
     };
 
     const handleLocalImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -108,6 +133,7 @@ export default function ReadingDetailPage() {
                                 <div className="mb-8 text-center border-b-2 border-slate-800 pb-4">
                                     <h1 className="text-xl font-black text-black tracking-tight mb-1 uppercase">I.E. 20504 San Jerónimo de Pativilca</h1>
                                     <h2 className="text-sm font-bold text-slate-600">Proyecto: Copiloto Pedagógico</h2>
+                                    <p className="text-xs font-semibold text-gray-700 mt-1">Docente: {reading?.creatorName || user?.displayName || user?.email || 'Sistema'}</p>
                                 </div>
                             </td>
                         </tr>
@@ -122,8 +148,8 @@ export default function ReadingDetailPage() {
                                     <div className="flex flex-col lg:grid lg:grid-cols-12 lg:gap-10 print:block">
 
                                         {/* LEFT COLUMN: Navigation, Cover, and Media Buttons */}
-                                        <div className="lg:col-span-4 flex flex-col gap-6 mb-8 lg:mb-0 print:hidden">
-                                            <div className="flex items-center gap-2">
+                                        <div className="lg:col-span-4 flex flex-col gap-6 mb-8 lg:mb-0 print:block">
+                                            <div className="flex items-center gap-2 print:hidden">
                                                 <button
                                                     onClick={() => router.back()}
                                                     className="inline-flex items-center justify-center text-sm font-semibold text-black hover:text-primary-700 transition-colors bg-white border border-slate-200 shadow-sm px-5 py-2.5 rounded-xl flex-grow"
@@ -132,9 +158,15 @@ export default function ReadingDetailPage() {
                                                     Volver al Catálogo
                                                 </button>
                                                 <button
+                                                    onClick={handlePrint}
+                                                    className="inline-flex items-center justify-center text-black hover:bg-slate-100 transition-colors bg-white border border-slate-200 shadow-sm p-2.5 rounded-xl w-fit"
+                                                    title="Imprimir Evaluación (PDF)"
+                                                >
+                                                    <Printer className="w-5 h-5" />
+                                                </button>
+                                                <button
                                                     onClick={() => {
                                                         setIsLoading(true);
-                                                        // Forzar la recarga simple re-seteando el ID dispara de nuevo useEffect
                                                         router.replace(`/dashboard/reading/${id}`);
                                                     }}
                                                     className="inline-flex items-center justify-center text-black hover:bg-orange-50 hover:text-orange-600 transition-colors bg-white border border-slate-200 shadow-sm p-2.5 rounded-xl w-fit"
@@ -144,9 +176,34 @@ export default function ReadingDetailPage() {
                                                 </button>
                                             </div>
 
-                                            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                                            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 print:border-none print:shadow-none print:p-0">
+                                                
+                                                {/* IN PRINT MODE - Show this specific header with the QR next to the Image */}
+                                                <div className="hidden print:flex flex-row items-center justify-center gap-6 mb-6">
+                                                    <div className="w-1/2 aspect-[4/3] rounded-2xl overflow-hidden shadow-md bg-slate-100 flex justify-center items-center relative">
+                                                        <ImageWithFallback
+                                                            src={localImage || reading.portadaUrl}
+                                                            alt={reading.titulo}
+                                                            fill
+                                                            sizes="(max-width: 1024px) 50vw, 33vw"
+                                                            className="object-cover"
+                                                            fallbackIconSize={12}
+                                                        />
+                                                    </div>
+                                                    <div className="w-1/3 flex flex-col items-center justify-center p-4 text-center border-4 border-dashed border-orange-200 rounded-3xl bg-orange-50">
+                                                        <QRCodeSVG 
+                                                            value={`${typeof window !== 'undefined' ? window.location.origin : ''}/escuchar/${reading.id}`} 
+                                                            size={96} 
+                                                            level="H"
+                                                            fgColor="#5D4037"
+                                                        />
+                                                        <p className="font-black text-[#5D4037] mt-3 text-sm leading-tight uppercase tracking-widest">Escucha la Lectura</p>
+                                                        <p className="text-xs text-[#8D6E63] font-bold mt-1">Escanea este código</p>
+                                                    </div>
+                                                </div>
+
                                                 <div
-                                                    className="aspect-[4/3] rounded-2xl overflow-hidden shadow-md border border-slate-200 mb-6 bg-slate-100 flex justify-center items-center relative group"
+                                                    className="aspect-[4/3] rounded-2xl overflow-hidden shadow-md border border-slate-200 mb-6 bg-slate-100 flex justify-center items-center relative group print:hidden"
                                                     onMouseEnter={() => setIsHoveringImage(true)}
                                                     onMouseLeave={() => setIsHoveringImage(false)}
                                                 >
@@ -244,6 +301,30 @@ export default function ReadingDetailPage() {
                                                             )}
                                                         </div>
                                                     )}
+
+                                                    {/* QR Mini Preview - Visible on Screen, Hidden in Print */}
+                                                    <div className="w-full mt-2 pt-6 border-t border-slate-200 print:hidden space-y-4">
+                                                        <h4 className="text-xs font-black text-black uppercase tracking-widest flex items-center gap-2">
+                                                            <Volume2 className="w-4 h-4 text-orange-600" /> Audio para Estudiantes
+                                                        </h4>
+                                                        <div className="flex items-start gap-4 p-4 rounded-xl bg-orange-50/50 border border-orange-100">
+                                                            <div className="bg-white p-2 rounded-lg shadow-sm shrink-0 border border-orange-200">
+                                                                <QRCodeSVG 
+                                                                    value={`${typeof window !== 'undefined' ? window.location.origin : ''}/escuchar/${reading.id}`} 
+                                                                    size={64} 
+                                                                    level="L"
+                                                                    fgColor="#5D4037"
+                                                                />
+                                                            </div>
+                                                            <div className="flex flex-col h-full justify-center">
+                                                                <p className="text-sm font-bold text-[#5D4037] mb-1">Página de Escucha Activa</p>
+                                                                <p className="text-xs text-[#8D6E63] leading-snug mb-2">Este QR se mostrará en grande al imprimir la ficha.</p>
+                                                                <a href={`/escuchar/${reading.id}`} target="_blank" className="text-xs font-black text-orange-600 hover:text-orange-700 flex items-center gap-1 transition-colors">
+                                                                    Abrir reproductor <ChevronLeft className="w-3 h-3 rotate-180" />
+                                                                </a>
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -261,6 +342,35 @@ export default function ReadingDetailPage() {
                                                         {reading.tipoTexto}
                                                     </div>
                                                 </div>
+
+                                                {(reading.creatorName || reading.createdAt || (reading as any).modificaciones) && (
+                                                    <div className="flex flex-col gap-2 mb-4">
+                                                        <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm font-medium text-slate-500">
+                                                            {reading.creatorName && (
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <PenTool className="w-4 h-4 text-orange-500" />
+                                                                    <span>Creado por: <strong className="text-slate-700">{reading.creatorName}</strong></span>
+                                                                </div>
+                                                            )}
+                                                            {reading.creatorName && reading.createdAt && (
+                                                                <span className="text-slate-300 hidden sm:inline">•</span>
+                                                            )}
+                                                            {reading.createdAt && (
+                                                                <div className="flex items-center gap-1.5 text-slate-500">
+                                                                    <span>{new Date(reading.createdAt).toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        {/* Edit History Section */}
+                                                        {(reading as any).modificaciones && (reading as any).modificaciones.length > 0 && (
+                                                            <div className="flex gap-2 items-center text-xs font-semibold text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200 w-fit">
+                                                                <RefreshCw className="w-3.5 h-3.5" />
+                                                                Última modificación por {(reading as any).modificaciones[(reading as any).modificaciones.length - 1].usuario} el {new Date((reading as any).modificaciones[(reading as any).modificaciones.length - 1].fecha).toLocaleDateString('es-PE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+
                                                 <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 mb-6 leading-[1.15] tracking-tight">
                                                     {reading.titulo}
                                                 </h1>
@@ -285,7 +395,75 @@ export default function ReadingDetailPage() {
                                                             ))}
                                                         </div>
                                                     ) : (
-                                                        <div className="space-y-4" dangerouslySetInnerHTML={{ __html: reading.contenido }} />
+                                                        <div className="space-y-4">
+                                                            <div id="documento-pdf" className="p-8 bg-white text-black rounded-3xl border border-slate-200/60 shadow-lg shadow-slate-900/5 print:border-none print:shadow-none print:p-0 print:break-inside-avoid mt-6">
+                                                              {/* Cabecera con Imagen y QR */}
+                                                              <div className="flex justify-between items-center border-b-2 border-blue-800 pb-4 mb-6">
+                                                                <div className="w-1/3">
+                                                                   {/* Renderizado REAL de la imagen */}
+                                                                   <img 
+                                                                     src={reading.portadaUrl || reading.imagenesReferencia?.[0] || "https://via.placeholder.com/150?text=Imagen+STEAM"} 
+                                                                     alt="Referencia" 
+                                                                     className="max-w-[130px] max-h-[130px] object-contain rounded" 
+                                                                     crossOrigin="anonymous" 
+                                                                   />
+                                                                </div>
+                                                                <div className="w-1/3 text-center">
+                                                                   <h2 className="text-xl font-bold text-gray-800 uppercase">I.E. 20504 - San Jerónimo</h2>
+                                                                   <p className="text-xs text-gray-500">Proyecto STEAM Integrado</p>
+                                                                   <p className="text-xs font-semibold text-gray-700 mt-1">Docente: {reading?.creatorName || user?.displayName || user?.email || 'Sistema'}</p>
+                                                                </div>
+                                                                <div className="w-1/3 flex justify-end">
+                                                                   {/* Renderizado REAL del QR */}
+                                                                   <div className="p-1 bg-white border rounded shadow-sm">
+                                                                     <QRCodeSVG value={`${typeof window !== 'undefined' ? window.location.origin : ''}/escuchar/${reading.id}`} size={100} />
+                                                                   </div>
+                                                                </div>
+                                                              </div>
+                                                              
+                                                              {/* Resto del contenido Markdown */}
+                                                              <div className="prose prose-sm max-w-none w-full overflow-hidden">
+                                                                <ReactMarkdown 
+                                                                  remarkPlugins={[remarkGfm]}
+                                                                  rehypePlugins={[rehypeRaw]} // Para procesar IDs de navegación
+                                                                  children={reading.contenido ? reading.contenido.replace(/(\*\*:?|:)\s*\|/g, '$1\n\n|') : ''}
+                                                                  components={{
+                                                                    // Enlaces de Navegación Interna para IDs como #ficha-del-estudiante
+                                                                    a: ({node, href, children, ...props}) => {
+                                                                      if (href && href.startsWith('#')) {
+                                                                        return (
+                                                                          <a 
+                                                                            href={href} 
+                                                                            className="text-blue-700 font-semibold hover:text-blue-900 border-b border-blue-200 pb-0.5" 
+                                                                            onClick={(e) => {
+                                                                              e.preventDefault();
+                                                                              document.getElementById(href.substring(1))?.scrollIntoView({ behavior: 'smooth' });
+                                                                            }} 
+                                                                            {...props}
+                                                                          >
+                                                                            {children}
+                                                                          </a>
+                                                                        );
+                                                                      }
+                                                                      return <a href={href} className="text-blue-600 hover:text-blue-800 underline" {...props}>{children}</a>;
+                                                                    },
+                                                                    table: ({node, ...props}) => <div className="overflow-x-auto w-full max-w-full"><table className="min-w-full border-collapse border border-blue-300 my-6 text-sm bg-white" {...props} /></div>,
+                                                                    thead: ({node, ...props}) => <thead className="bg-blue-600 text-white font-bold" {...props} />,
+                                                                    th: ({node, ...props}) => <th className="border border-blue-300 px-5 py-3 text-left" {...props} />,
+                                                                    td: ({node, ...props}) => <td className="border border-blue-200 px-5 py-3 text-gray-800" {...props} />,
+                                                                    h1: ({node, ...props}) => <h1 id={props.id || "titulo-generado"} className="text-3xl font-extrabold text-blue-900 mt-8 mb-6 uppercase tracking-tight" {...props} />,
+                                                                    h2: ({node, ...props}) => <h2 id={props.id} className="text-2xl font-bold text-blue-800 mt-7 mb-5" {...props} />,
+                                                                    h3: ({node, ...props}) => <h3 id={props.id} className="text-xl font-semibold text-blue-700 mt-6 mb-4" {...props} />,
+                                                                    p: ({node, ...props}) => <p className="mb-5 text-gray-800 leading-relaxed" {...props} />,
+                                                                    strong: ({node, ...props}) => <strong className="font-bold text-gray-950" {...props} />,
+                                                                    ul: ({node, ...props}) => <ul className="list-disc pl-6 mb-5 text-gray-800 space-y-2" {...props} />,
+                                                                    ol: ({node, ...props}) => <ol className="list-decimal pl-6 mb-5 text-gray-800 space-y-2" {...props} />,
+                                                                    li: ({node, ...props}) => <li className="mb-1" {...props} />,
+                                                                  }}
+                                                                />
+                                                              </div>
+                                                            </div>
+                                                        </div>
                                                     )}
                                                 </div>
                                             </div>
@@ -301,33 +479,61 @@ export default function ReadingDetailPage() {
                                                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
                                                             <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
                                                         </span>
-                                                        Innovación Lúdica Activa
+                                                        {isSteam ? 'Validado por IA' : 'Innovación Lúdica Activa'}
                                                     </span>
                                                 </div>
 
-                                                {/* Tabs: Lectura, Escritura, Oralidad */}
+                                                {/* Tabs: Dynamic based on Area */}
                                                 <div className="flex flex-wrap bg-slate-50 rounded-xl border border-slate-200 p-1.5 mb-8 gap-1.5 print:hidden">
-                                                    <button
-                                                        onClick={() => setActiveTab('lectura')}
-                                                        className={`flex-1 min-w-[120px] flex justify-center items-center gap-2 py-3 px-4 rounded-lg font-black text-sm transition-all ${activeTab === 'lectura' ? 'bg-black text-white shadow-md scale-[1.02]' : 'text-black bg-slate-200 hover:bg-slate-300'
-                                                            }`}
-                                                    >
-                                                        <BookOpen className="w-5 h-5" /> Lectura
-                                                    </button>
-                                                    <button
-                                                        onClick={() => setActiveTab('escritura')}
-                                                        className={`flex-1 min-w-[120px] flex justify-center items-center gap-2 py-3 px-4 rounded-lg font-black text-sm transition-all ${activeTab === 'escritura' ? 'bg-black text-white shadow-md scale-[1.02]' : 'text-black bg-slate-200 hover:bg-slate-300'
-                                                            }`}
-                                                    >
-                                                        <PenTool className="w-5 h-5" /> Escritura
-                                                    </button>
-                                                    <button
-                                                        onClick={() => setActiveTab('oralidad')}
-                                                        className={`flex-1 min-w-[120px] flex justify-center items-center gap-2 py-3 px-4 rounded-lg font-black text-sm transition-all ${activeTab === 'oralidad' ? 'bg-black text-white shadow-md scale-[1.02]' : 'text-black bg-slate-200 hover:bg-slate-300'
-                                                            }`}
-                                                    >
-                                                        <MessageCircle className="w-5 h-5" /> Oralidad
-                                                    </button>
+                                                    {isMath ? (
+                                                        <>
+                                                            <button
+                                                                onClick={() => setActiveTab('cantidad')}
+                                                                className={`flex-1 min-w-[100px] flex justify-center items-center gap-2 py-3 px-4 rounded-lg font-black text-xs sm:text-sm transition-all ${activeTab === 'cantidad' ? 'bg-black text-white shadow-md scale-[1.02]' : 'text-black bg-slate-200 hover:bg-slate-300'}`}
+                                                            >
+                                                                Cantidad
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setActiveTab('forma')}
+                                                                className={`flex-1 min-w-[100px] flex justify-center items-center gap-2 py-3 px-4 rounded-lg font-black text-xs sm:text-sm transition-all ${activeTab === 'forma' ? 'bg-black text-white shadow-md scale-[1.02]' : 'text-black bg-slate-200 hover:bg-slate-300'}`}
+                                                            >
+                                                                Forma
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setActiveTab('regularidad')}
+                                                                className={`flex-1 min-w-[100px] flex justify-center items-center gap-2 py-3 px-4 rounded-lg font-black text-xs sm:text-sm transition-all ${activeTab === 'regularidad' ? 'bg-black text-white shadow-md scale-[1.02]' : 'text-black bg-slate-200 hover:bg-slate-300'}`}
+                                                            >
+                                                                Regularidad
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setActiveTab('datos')}
+                                                                className={`flex-1 min-w-[100px] flex justify-center items-center gap-2 py-3 px-4 rounded-lg font-black text-xs sm:text-sm transition-all ${activeTab === 'datos' ? 'bg-black text-white shadow-md scale-[1.02]' : 'text-black bg-slate-200 hover:bg-slate-300'}`}
+                                                            >
+                                                                Datos
+                                                            </button>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <button
+                                                                onClick={() => setActiveTab('lectura')}
+                                                                className={`flex-1 min-w-[120px] flex justify-center items-center gap-2 py-3 px-4 rounded-lg font-black text-sm transition-all ${activeTab === 'lectura' ? 'bg-black text-white shadow-md scale-[1.02]' : 'text-black bg-slate-200 hover:bg-slate-300'}`}
+                                                            >
+                                                                <BookOpen className="w-5 h-5" /> {isSteam ? 'Ficha Estudiante' : 'Lectura'}
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setActiveTab('escritura')}
+                                                                className={`flex-1 min-w-[120px] flex justify-center items-center gap-2 py-3 px-4 rounded-lg font-black text-sm transition-all ${activeTab === 'escritura' ? 'bg-black text-white shadow-md scale-[1.02]' : 'text-black bg-slate-200 hover:bg-slate-300'}`}
+                                                            >
+                                                                <PenTool className="w-5 h-5" /> {isSteam ? 'Reto STEAM' : 'Escritura'}
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setActiveTab('oralidad')}
+                                                                className={`flex-1 min-w-[120px] flex justify-center items-center gap-2 py-3 px-4 rounded-lg font-black text-sm transition-all ${activeTab === 'oralidad' ? 'bg-black text-white shadow-md scale-[1.02]' : 'text-black bg-slate-200 hover:bg-slate-300'}`}
+                                                            >
+                                                                <MessageCircle className="w-5 h-5" /> {isSteam ? 'Guía Docente' : 'Oralidad'}
+                                                            </button>
+                                                        </>
+                                                    )}
                                                 </div>
 
                                                 {/* Activities List */}
@@ -347,7 +553,7 @@ export default function ReadingDetailPage() {
 
                                                             {/* Activity Type Badge */}
                                                             <div className="absolute top-0 right-0 bg-slate-100 px-4 py-1.5 text-[10px] sm:text-xs font-black uppercase tracking-widest text-slate-500 rounded-bl-2xl border-b border-l border-slate-200 print:bg-slate-50 print:border-slate-300 print:text-black">
-                                                                Competencia: {activity.type}
+                                                                {isSteam ? 'Habilidades STEAM' : `Competencia: ${activity.type}`}
                                                             </div>
 
                                                             {/* Decorative subtle left border */}
@@ -420,7 +626,7 @@ export default function ReadingDetailPage() {
                                                                                 <thead className="bg-slate-50 border-b border-slate-200">
                                                                                     <tr>
                                                                                         <th className="px-5 py-4 font-extrabold w-[25%] border-r border-slate-200 text-orange-800 bg-orange-50/80">AD - Destacado</th>
-                                                                                        <th className="px-5 py-4 font-extrabold w-[25%] border-r border-slate-200 text-blue-800 bg-blue-50/80">A - Logrado</th>
+                                                                                        <th className="px-5 py-4 font-extrabold w-[25%] border-r border-slate-200 text-emerald-800 bg-emerald-50/80">A - Logrado</th>
                                                                                         <th className="px-5 py-4 font-extrabold w-[25%] border-r border-slate-200 text-amber-800 bg-amber-50/80">B - En Proceso</th>
                                                                                         <th className="px-5 py-4 font-extrabold w-[25%] text-rose-800 bg-rose-50/80">C - En Inicio</th>
                                                                                     </tr>
@@ -428,7 +634,7 @@ export default function ReadingDetailPage() {
                                                                                 <tbody className="divide-y divide-slate-100 bg-white">
                                                                                     <tr>
                                                                                         <td className="px-5 py-5 text-orange-950 border-r border-slate-100 align-top leading-relaxed font-medium">{activity.rubricaEvaluacion.destacado}</td>
-                                                                                        <td className="px-5 py-5 text-blue-950 border-r border-slate-100 align-top leading-relaxed font-medium">{activity.rubricaEvaluacion.logrado}</td>
+                                                                                        <td className="px-5 py-5 text-emerald-950 border-r border-slate-100 align-top leading-relaxed font-medium">{activity.rubricaEvaluacion.logrado}</td>
                                                                                         <td className="px-5 py-5 text-amber-950 border-r border-slate-100 align-top leading-relaxed font-medium">{activity.rubricaEvaluacion.proceso}</td>
                                                                                         <td className="px-5 py-5 text-rose-950 align-top leading-relaxed font-medium">{activity.rubricaEvaluacion.inicio}</td>
                                                                                     </tr>

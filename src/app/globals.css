@@ -1,14 +1,16 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary-50: #eff6ff;
-  --color-primary-100: #dbeafe;
-  --color-primary-500: #60a5fa;
-  /* Lighter vibrant blue for contrast with black */
-  --color-primary-600: #3b82f6;
-  /* Classic striking blue */
-  --color-primary-700: #2563eb;
-  --color-primary-900: #1d4ed8;
+  /* Beige/Brown Theme Palette */
+  --color-primary-50: #fdf5e6;
+  /* Soft Beige */
+  --color-primary-100: #f5e6d3;
+  --color-primary-500: #8d6e63;
+  --color-primary-600: #795548;
+  /* Main Brown */
+  --color-primary-700: #5d4037;
+  /* Dark Brown Base */
+  --color-primary-900: #3e2723;
 
   --color-accent-50: #fffefc;
   --color-accent-100: #ffedd5;
