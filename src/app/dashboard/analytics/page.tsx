@@ -133,6 +133,7 @@ export default function AnalyticsDashboardPage() {
         ]);
         
         const contenidoCSV = [cabeceras.join(","), ...filas.map(f => f.join(","))].join("\n");
+        // @ts-ignore
         const blob = new Blob(["\ufeff", contenidoCSV], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
