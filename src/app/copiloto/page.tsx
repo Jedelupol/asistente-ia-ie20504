@@ -7,13 +7,10 @@ import { collection, addDoc } from 'firebase/firestore';
 import { Bot, Sparkles, MapPin, Target, Loader2, BookOpen, PenTool, MessageCircle, AlertCircle, ArrowLeft, Printer, BookText, Youtube } from 'lucide-react';
 import ImageWithFallback from '@/components/ImageWithFallback';
 import Image from 'next/image';
-<<<<<<< HEAD
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import { QRCodeSVG as QRCode } from 'qrcode.react';
-=======
->>>>>>> 0d9a26f8ba7f2a976111182f91fd404313322fb5
 import { useAuth } from '@/lib/AuthContext';
 
 type ActivityType = 'oralidad' | 'lectura' | 'escritura' | 'cantidad' | 'regularidad' | 'forma' | 'datos';
@@ -227,19 +224,14 @@ JSON base (devuelve SOLO el JSON validado):
                 // ÁREA: INTEGRADA (STEAM)
                 // ═══════════════════════════════════════
             } else {
-<<<<<<< HEAD
                 // Array completo de habilidades — se inyecta COMPLETO, nunca condensado.
                 const listaHabilidades = formData.competencia
                     .map((c: string, i: number) => `${i + 1}. ${c}`)
                     .join('\n');
-=======
+
                 const steamInfo = isSecundariaVar
                     ? " Integra fuertemente conceptos avanzados de Electrónica, Arduino o Ciencia de Datos (STEAM)."
                     : " Usa un enfoque maker, robots simples y exploración.";
-
-                promptText = `Eres un asistente pedagógico de élite experto en el CNEB de Perú.
-Genera contenido educativo con rigor curricular y creatividad excepcional.${steamInfo}
->>>>>>> 0d9a26f8ba7f2a976111182f91fd404313322fb5
 
                 const isUpperSec = isSecundariaVar && (parseInt(formData.ciclo.match(/\d+/)?.[0] || '0') >= 4);
 
@@ -288,7 +280,7 @@ ${listaHabilidades}
 |---|---|---|---|---|
 | [Nombre del producto en ≤5 palabras] | [Descriptor breve] | [Descriptor breve] | [Descriptor breve] | [Descriptor que exija resolver dilema ético y fundamentar impacto social] |`;
 
-                promptText = `Eres un asistente pedagógico experto en el CNEB de Perú. ${toneNote}
+                promptText = `Eres un asistente pedagógico experto en el CNEB de Perú. ${toneNote} Genera contenido educativo con rigor curricular y creatividad excepcional. ${steamInfo}
 
 DATOS DEL DOCENTE (NO MODIFICAR):
 - Área: ${formData.area}
@@ -298,7 +290,6 @@ ${listaHabilidades}
 - Contexto Institucional: ${formData.contexto}
 - Enfoque Transversal: ${formData.valor}
 
-<<<<<<< HEAD
 REGLAS ABSOLUTAS:
 1. ESTRUCTURA OBLIGATORIA (CERO OMISIONES): ESTÁ ESTRICTAMENTE PROHIBIDO omitir secciones. DEBES generar OBLIGATORIAMENTE los 4 apartados en este orden exacto:
 # 1. LECTURA MULTIMODAL Y TÉCNICA
@@ -321,41 +312,19 @@ ${guiaDocente}
 - youtubeUrl: "https://www.youtube.com/results?search_query=[español]"
 
 JSON (devuelve SOLO este JSON sin texto adicional):
-=======
-INSTRUCCIONES:
-- DIVERSIDAD TEMÁTICA: Rota entre IA, Biotecnología, Exploración Espacial, Energías Renovables, Robótica, Impresión 3D.
-- NO DEPENDENCIAS EXTERNAS: Prohibido indicar al estudiante "lee algo proveído por el maestro". Todo el contexto va en la lectura autogenerada.
-- NOMBRES DE ACTIVIDADES: Los encabezados de las preguntas DEBEN llamarse ÚNICAMENTE "Reto 1", "Reto 2" o "Reto de [Tema]". ESTÁ ESTRICTAMENTE PROHIBIDO usar la palabra "Misión".
-${lengthAndToneInstruction}
-- SINERGIA DE COMPETENCIAS: Las actividades de cada competencia deben basarse estrictamente en el mismo contexto e información de la lectura. No inventes historias distintas por actividad.
-- FORMATO TEXTO ESTRICTO: Prohibido incluir Markdown como ###, ## o <h1>. Todo debe ser texto plano.
-- CONSIGNA GENERAL: Debe ser de un máximo de 3 líneas.
-- REGLA DE ORO: NUNCA omitas portadaUrl, youtubeUrl ni las actividades generadas (1 por cada competencia solicitada) con rúbricas.
-- portadaUrl: "https://image.pollinations.ai/prompt/[keywords+ingles]?width=600&height=400&nologo=true"
-- youtubeUrl: "https://www.youtube.com/results?search_query=[español]"
-
-JSON (devuelve SOLO el JSON validado):
->>>>>>> 0d9a26f8ba7f2a976111182f91fd404313322fb5
 {
   "id": "copilot-gen-dyn",
   "titulo": "string",
   "grado": ${parseInt(formData.ciclo.match(/\d/)?.[0] || '5')},
   "tipoTexto": "Proyecto STEAM",
   "portadaUrl": "https://image.pollinations.ai/prompt/...",
-<<<<<<< HEAD
   "contenido": "[Toda la estructura generada en Markdown solicitada (Ej. # 1. LECTURA MULTIMODAL... hasta la Rúbrica)]",
   "consigna": "string",
   "youtubeUrl": "string",
-=======
-  "contenido": "[Descripción del proyecto. ${lengthPlaceholder}. Texto plano sin cabeceras.]",
-  "consigna": "[Instrucciones generales, máximo de 3 líneas.]",
-  "youtubeUrl": "https://www.youtube.com/results?search_query=...",
->>>>>>> 0d9a26f8ba7f2a976111182f91fd404313322fb5
   "sugerenciaLibro": "string",
   "searchKeywords": "string",
   "visualPrompt": "[1 English sentence for a coloring book line-art illustration]",
   "actividades": [
-<<<<<<< HEAD
     {
       "id": "act-1",
       "type": "steam",
@@ -366,10 +335,6 @@ JSON (devuelve SOLO el JSON validado):
       "estrategiasAplicacion": "[1-2 estrategias concretas para el docente]",
       "rubricaEvaluacion": { "destacado": "string", "logrado": "string", "proceso": "string", "inicio": "string" }
     }
-=======
-    // Genera EXACTAMENTE un objeto por cada competencia solicitada en '${competenciasUnidas}'. Reemplaza "type" con un valor corto relacionado.
-    { "id": "act-1", "type": "indagacion", "pregunta": "[Reto 1, Reto 2, etc. Nunca uses la palabra Misión.]", "respuestaEsperada": "string", "capacidad": "string", "estandar": "string", "estrategiasAplicacion": "string", "rubricaEvaluacion": { "destacado": "string", "logrado": "string", "proceso": "string", "inicio": "string" } }
->>>>>>> 0d9a26f8ba7f2a976111182f91fd404313322fb5
   ]
 }`;
             }
@@ -397,14 +362,10 @@ JSON (devuelve SOLO el JSON validado):
                     ...restData,
                     nivel: isSecundaria ? 'secundaria' : 'primaria',
                     area: formData.area || 'Comunicación',
-<<<<<<< HEAD
                     autor: user?.displayName || user?.email || "Docente no identificado",
-                    createdAt: new Date().toISOString()
-=======
-                    createdAt: new Date().toISOString(),
                     creatorId: user?.uid || null,
-                    creatorName: user?.displayName || user?.email?.split('@')[0] || 'Docente Copiloto'
->>>>>>> 0d9a26f8ba7f2a976111182f91fd404313322fb5
+                    creatorName: user?.displayName || user?.email?.split('@')[0] || 'Docente Copiloto',
+                    createdAt: new Date().toISOString()
                 };
 
                 const docRef = await addDoc(collection(db, 'readings'), readingToSave);
@@ -877,7 +838,6 @@ JSON (devuelve SOLO el JSON validado):
                                     <div className="lg:col-span-8 flex flex-col gap-10 print:block">
 
                                         {/* Reading Content */}
-<<<<<<< HEAD
                                         <div id="documento-pdf" className="p-8 bg-white text-black rounded-3xl border border-slate-200/60 shadow-lg shadow-slate-900/5 print:border-none print:shadow-none print:p-0 print:break-inside-avoid mt-6">
                                           {/* Cabecera con Imagen y QR */}
                                           <div className="flex justify-between items-center border-b-2 border-blue-800 pb-4 mb-6">
@@ -889,24 +849,6 @@ JSON (devuelve SOLO el JSON validado):
                                                  className="max-w-[130px] max-h-[130px] object-contain rounded" 
                                                  crossOrigin="anonymous" 
                                                />
-=======
-                                        <div className="bg-white rounded-3xl border border-slate-200/60 p-6 sm:p-10 shadow-lg shadow-slate-900/5 print:border-none print:shadow-none print:p-0 print:break-inside-avoid">
-                                            <h4 className="text-[16px] font-bold text-black mb-8 pb-4 border-b border-slate-100 flex items-center gap-3">
-                                                {isMath ? 'Situación Problemática' : 'Texto de Lectura'}
-                                            </h4>
-                                            {generatedReading.imagenesReferencia && generatedReading.imagenesReferencia.length > 0 && (
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 print:block text-center auto-cols-max">
-                                                    {generatedReading.imagenesReferencia.map((imgUrl, idx) => (
-                                                        <figure key={idx} className="relative aspect-video rounded-2xl overflow-hidden shadow-sm border border-slate-200 print:mb-4 print:border-none print:shadow-none print:w-full max-w-[400px] print:mx-auto float-none !static">
-                                                            <ImageWithFallback src={imgUrl} alt="Imagen de Referencia" fill className="object-cover !static !w-full !h-auto" fallbackIconSize={8} />
-                                                            <figcaption className="absolute bottom-0 w-full bg-black/60 backdrop-blur-sm text-white text-xs font-semibold p-2 text-center print:hidden">Imagen de referencia extraída por IA</figcaption>
-                                                        </figure>
-                                                    ))}
-                                                </div>
-                                            )}
-                                            <div className="text-black text-[16px] font-normal font-sans leading-relaxed space-y-4 [&>p]:text-[16px] [&>div]:text-[16px]">
-                                                <div dangerouslySetInnerHTML={{ __html: generatedReading.contenido.replace(/\n/g, '<br/>') }} />
->>>>>>> 0d9a26f8ba7f2a976111182f91fd404313322fb5
                                             </div>
                                             <div className="w-1/3 text-center">
                                                <h2 className="text-xl font-bold text-gray-800 uppercase">I.E. 20504 - San Jerónimo</h2>
@@ -1090,15 +1032,10 @@ JSON (devuelve SOLO el JSON validado):
 
                                                                 <div className="grid sm:grid-cols-2 gap-4 mb-6">
                                                                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-<<<<<<< HEAD
-                                                                        <h5 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-2">
+                                                                        <h4 className="text-[16px] font-bold text-slate-400 uppercase tracking-wider mb-2">
                                                                             {formData.area === 'Integrada (STEAM)' ? 'Habilidades STEAM' : 'Capacidad CNEB'}
-                                                                        </h5>
-                                                                        <p className="text-sm font-medium text-black leading-relaxed">{activity.capacidad}</p>
-=======
-                                                                        <h4 className="text-[16px] font-bold text-slate-400 uppercase tracking-wider mb-2">Capacidad CNEB</h4>
+                                                                        </h4>
                                                                         <p className="text-[16px] font-sans font-normal text-black leading-relaxed">{activity.capacidad}</p>
->>>>>>> 0d9a26f8ba7f2a976111182f91fd404313322fb5
                                                                     </div>
                                                                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
                                                                         <h4 className="text-[16px] font-bold text-slate-400 uppercase tracking-wider mb-2">Estrategia Docente</h4>
@@ -1196,7 +1133,6 @@ JSON (devuelve SOLO el JSON validado):
                             </td>
                         </tr>
                     </tfoot>
-<<<<<<< HEAD
                 </table>
                 <div className="mt-12 pt-8 border-t border-slate-200 text-center print:hidden">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto mb-6 text-left">
@@ -1213,10 +1149,6 @@ JSON (devuelve SOLO el JSON validado):
                             <p className="text-sm font-bold text-black">{formData.competencia.join(', ')}</p>
                         </div>
                     </div>
-=======
-                </table >
-                <div className="mt-12 text-center print:hidden">
->>>>>>> 0d9a26f8ba7f2a976111182f91fd404313322fb5
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Desarrollado por el Prof. de Innovación Pedagógica Lic. Jesús Luna Polanco - I.E. 20504</p>
                 </div>
             </div >
