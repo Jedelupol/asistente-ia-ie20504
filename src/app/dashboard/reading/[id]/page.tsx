@@ -62,10 +62,7 @@ export default function ReadingDetailPage() {
     }, [id]);
 
     const isMath = reading?.actividades.some(a => ['cantidad', 'forma', 'regularidad', 'datos'].includes(a.type)) || false;
-<<<<<<< HEAD
     const isSteam = reading?.area === 'Integrada (STEAM)';
-=======
->>>>>>> 0d9a26f8ba7f2a976111182f91fd404313322fb5
 
     // Auto-select correct first tab on load if the current tab is invalid for the type
     useEffect(() => {
@@ -521,31 +518,19 @@ export default function ReadingDetailPage() {
                                                                 onClick={() => setActiveTab('lectura')}
                                                                 className={`flex-1 min-w-[120px] flex justify-center items-center gap-2 py-3 px-4 rounded-lg font-black text-sm transition-all ${activeTab === 'lectura' ? 'bg-black text-white shadow-md scale-[1.02]' : 'text-black bg-slate-200 hover:bg-slate-300'}`}
                                                             >
-<<<<<<< HEAD
                                                                 <BookOpen className="w-5 h-5" /> {isSteam ? 'Ficha Estudiante' : 'Lectura'}
-=======
-                                                                <BookOpen className="w-5 h-5" /> Lectura
->>>>>>> 0d9a26f8ba7f2a976111182f91fd404313322fb5
                                                             </button>
                                                             <button
                                                                 onClick={() => setActiveTab('escritura')}
                                                                 className={`flex-1 min-w-[120px] flex justify-center items-center gap-2 py-3 px-4 rounded-lg font-black text-sm transition-all ${activeTab === 'escritura' ? 'bg-black text-white shadow-md scale-[1.02]' : 'text-black bg-slate-200 hover:bg-slate-300'}`}
                                                             >
-<<<<<<< HEAD
                                                                 <PenTool className="w-5 h-5" /> {isSteam ? 'Reto STEAM' : 'Escritura'}
-=======
-                                                                <PenTool className="w-5 h-5" /> Escritura
->>>>>>> 0d9a26f8ba7f2a976111182f91fd404313322fb5
                                                             </button>
                                                             <button
                                                                 onClick={() => setActiveTab('oralidad')}
                                                                 className={`flex-1 min-w-[120px] flex justify-center items-center gap-2 py-3 px-4 rounded-lg font-black text-sm transition-all ${activeTab === 'oralidad' ? 'bg-black text-white shadow-md scale-[1.02]' : 'text-black bg-slate-200 hover:bg-slate-300'}`}
                                                             >
-<<<<<<< HEAD
                                                                 <MessageCircle className="w-5 h-5" /> {isSteam ? 'Guía Docente' : 'Oralidad'}
-=======
-                                                                <MessageCircle className="w-5 h-5" /> Oralidad
->>>>>>> 0d9a26f8ba7f2a976111182f91fd404313322fb5
                                                             </button>
                                                         </>
                                                     )}

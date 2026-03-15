@@ -47,10 +47,7 @@ export interface Reading {
     createdAt?: string;
     creatorName?: string;
     creatorId?: string;
-<<<<<<< HEAD
     area?: string;
-=======
->>>>>>> 0d9a26f8ba7f2a976111182f91fd404313322fb5
 }
 
 export const mockReadings: Reading[] = [
